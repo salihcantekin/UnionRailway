@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>netstandard2.1;net8.0;net9.0</TargetFrameworks>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <PackageId>UnionRailway</PackageId>
+    <Authors>UnionRailway Contributors</Authors>
+    <Description>Railway-Oriented Programming with C# Discriminated Unions. Eliminate try-catch blocks and replace exceptions with compile-time safe union return types.</Description>
+    <PackageTags>csharp;union;railway;rop;error-handling</PackageTags>
+    <RepositoryUrl>https://github.com/salihcantekin/UnionRailway</RepositoryUrl>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.1'">
+    <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="8.0.0" />
+  </ItemGroup>
+
+</Project>

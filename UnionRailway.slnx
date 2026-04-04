@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/UnionRailway.EntityFrameworkCore/UnionRailway.EntityFrameworkCore.csproj" />
+    <Project Path="src/UnionRailway.HttpClient/UnionRailway.HttpClient.csproj" />
+    <Project Path="src/UnionRailway/UnionRailway.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/UnionRailway.Tests/UnionRailway.Tests.csproj" />
+  </Folder>
+</Solution>

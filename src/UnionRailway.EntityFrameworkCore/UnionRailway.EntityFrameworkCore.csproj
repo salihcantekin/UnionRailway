@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;net9.0</TargetFrameworks>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <PackageId>UnionRailway.EntityFrameworkCore</PackageId>
+    <Authors>UnionRailway Contributors</Authors>
+    <Description>Entity Framework Core adapter for UnionRailway. Provides extension methods that return union Result types instead of throwing exceptions.</Description>
+    <PackageTags>csharp;union;railway;rop;error-handling;efcore;entityframework</PackageTags>
+    <RepositoryUrl>https://github.com/salihcantekin/UnionRailway</RepositoryUrl>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\UnionRailway\UnionRailway.csproj" />
+  </ItemGroup>
+
+</Project>

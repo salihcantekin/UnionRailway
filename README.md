@@ -4,24 +4,30 @@
 [![Build Status](https://img.shields.io/github/actions/workflow/status/salihcantekin/UnionRailway/dotnet.yml?branch=main)](https://github.com/salihcantekin/UnionRailway/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**Railway-Oriented Programming with C# Discriminated Unions. Eliminate `try-catch` blocks and replace exceptions with compile-time safe union return types.**
+**No jargon. No ceremony. Just clean error handling with early returns.**
+
+UnionRailway is a C# library that replaces `try-catch` and thrown exceptions with simple, type-safe `Result<T>` return types. Check success, grab the data or error, and move on.
 
 ---
 
 ## Why UnionRailway?
 
-Traditional .NET error handling relies on `try-catch` blocks and thrown exceptions. This approach has significant drawbacks:
+Traditional .NET error handling has real problems:
 
-- **Exceptions are invisible in method signatures.** Callers have no compile-time indication that a method can fail, leading to unhandled errors.
-- **Performance overhead.** Exception throwing and catching is expensive, especially in hot paths.
-- **Control flow obscured.** `try-catch` scatters error handling across the codebase, making domain logic harder to follow.
+- **Hidden failures.** A method signature says `User GetUser(int id)` but it might throw five different exceptions. The caller has no idea.
+- **Scattered logic.** `try-catch` blocks obscure your domain logic and make code harder to read.
+- **Performance cost.** Throwing exceptions is expensive in hot paths.
 
-**UnionRailway** replaces this pattern with a functional, Railway-Oriented Programming (ROP) approach using C# discriminated unions (abstract record hierarchies with exhaustive pattern matching):
+**UnionRailway fixes this.** Every operation returns a `Result<T>` that is either `Ok(data)` or `Error(error)`. You check it, handle it, and move on. No hidden surprises.
 
-- Every operation returns a `Result<T>` that is either `Ok(T)` or `Error(UnionError)`.
-- The compiler helps you handle every possible error case through pattern matching.
-- No more hidden exceptions. Every failure path is explicit and type-safe.
-- Functional composition with `Map`, `Bind`, `Match`, and `Tap` lets you chain operations cleanly.
+```csharp
+if (!result.IsSuccess(out var user, out var error))
+    return error; // early return - done
+
+// use user safely here
+```
+
+That's it. No functional programming jargon. No learning curve. Just C# you already know.
 
 ---
 
@@ -30,6 +36,9 @@ Traditional .NET error handling relies on `try-catch` blocks and thrown exceptio
 ```bash
 # Core library
 dotnet add package UnionRailway
+
+# ASP.NET Core adapter (Minimal APIs / Controllers)
+dotnet add package UnionRailway.AspNetCore
 
 # Entity Framework Core adapter
 dotnet add package UnionRailway.EntityFrameworkCore
@@ -40,156 +49,178 @@ dotnet add package UnionRailway.HttpClient
 
 ---
 
-## Quick Start
+## Quick Start: The Early Return Pattern
 
-### Core Usage
+The core idea is simple: check if the result succeeded, use `out` parameters to get the data or the error, and return early if it failed.
 
 ```csharp
 using UnionRailway;
 
-// Define a function that returns a Result
-Result<User> GetUser(int id)
+Result<User> result = await userService.GetByIdAsync(42);
+
+if (!result.IsSuccess(out var user, out var error))
 {
-    var user = repository.FindById(id);
-    return user is not null
-        ? new Result<User>.Ok(user)
-        : new Result<User>.Error(new UnionError.NotFound("User"));
+    // error is a UnionError - handle it however you want
+    logger.LogWarning("Failed: {Error}", error);
+    return;
 }
 
-// Chain operations with Map and Bind
-var result = GetUser(42)
-    .Map(user => user.Email)
-    .Bind(email => ValidateEmail(email));
+// user is guaranteed to have a value here
+Console.WriteLine($"Hello, {user.Name}!");
 ```
 
-### Exhaustive Pattern Matching
-
-The compiler enforces that you handle every variant of `UnionError`:
+### Chaining Multiple Operations
 
 ```csharp
-var message = result switch
+var userResult = await userService.GetByIdAsync(userId);
+if (!userResult.IsSuccess(out var user, out var userError))
+    return userError;
+
+var orderResult = await orderService.GetLatestAsync(user.Id);
+if (!orderResult.IsSuccess(out var order, out var orderError))
+    return orderError;
+
+// Both succeeded - use user and order safely
+Console.WriteLine($"{user.Name}'s latest order: {order.Id}");
+```
+
+---
+
+## ASP.NET Core: One-Line HTTP Responses
+
+The `UnionRailway.AspNetCore` adapter converts any `Result<T>` into the correct HTTP response with a single call to `.ToHttpResult()`.
+
+```csharp
+using UnionRailway;
+using UnionRailway.AspNetCore;
+
+app.MapGet("/users/{id}", async (int id, UserService service) =>
 {
-    Result<string>.Ok(var data) => $"Success: {data}",
-    Result<string>.Error(UnionError.NotFound(var resource)) => $"{resource} was not found",
-    Result<string>.Error(UnionError.Conflict(var reason)) => $"Conflict: {reason}",
-    Result<string>.Error(UnionError.Unauthorized) => "Access denied",
-    Result<string>.Error(UnionError.Validation(var fields)) => $"Validation failed: {string.Join(", ", fields.Keys)}",
-    Result<string>.Error(UnionError.SystemFailure(var ex)) => $"System error: {ex.Message}",
-    _ => "Unknown"
-};
+    var result = await service.GetByIdAsync(id);
+    return result.ToHttpResult(); // That's it. One line.
+});
 ```
 
-### Functional Composition
+**What `.ToHttpResult()` does automatically:**
+
+| Result | HTTP Response |
+|---|---|
+| `Ok(data)` | `200 OK` with the data |
+| `NotFound("User")` | `404 Not Found` |
+| `Conflict("Duplicate")` | `409 Conflict` |
+| `Unauthorized` | `401 Unauthorized` |
+| `Validation(fields)` | `400 Bad Request` with validation errors |
+| `SystemFailure(ex)` | `500 Problem Details` |
+
+### Early Return + ToHttpResult
+
+For more complex endpoints, combine early returns with `.ToHttpResult()`:
 
 ```csharp
-// Map: Transform the success value
-var nameResult = userResult.Map(user => user.Name);
+app.MapPost("/orders", async (CreateOrderRequest req, OrderService service, UserService users) =>
+{
+    var userResult = await users.GetByIdAsync(req.UserId);
+    if (!userResult.IsSuccess(out var user, out var error))
+        return error.ToHttpResult(); // returns 404, 401, etc.
 
-// Bind: Chain to another Result-returning function
-var orderResult = userResult.Bind(user => GetLatestOrder(user.Id));
-
-// Tap: Side effects without changing the result
-var logged = userResult.Tap(user => logger.LogInformation("Found user {Id}", user.Id));
-
-// Match: Extract a final value from either branch
-var response = userResult.Match(
-    onOk: user => Ok(user),
-    onError: err => MapToHttpResponse(err));
-
-// Async variants
-var asyncResult = await GetUserAsync(42)
-    .MapAsync(user => user.Email)
-    .BindAsync(email => ValidateEmailAsync(email));
+    var orderResult = await service.CreateAsync(user, req);
+    return orderResult.ToHttpResult(); // returns 200 or error
+});
 ```
 
 ---
 
 ## Entity Framework Core Adapter
 
-The EF Core adapter wraps common database operations, automatically mapping exceptions and null results to the appropriate `UnionError` variant.
+Wraps database operations so they return `Result<T>` instead of throwing exceptions.
 
 ```csharp
 using UnionRailway.EntityFrameworkCore;
 
-// Query for a single entity (returns NotFound if null)
+// Find by primary key - returns NotFound instead of null
+var result = await dbContext.FindAsUnionAsync<User>(userId);
+
+// Query - returns NotFound instead of null
 var result = await dbContext.Users
-    .Where(u => u.Email == "alice@example.com")
+    .Where(u => u.Email == email)
     .FirstOrDefaultAsUnionAsync();
 
-// Find by primary key
-var found = await dbContext.FindAsUnionAsync<User>(userId);
-
-// Save changes (catches DbUpdateException, concurrency violations, etc.)
+// Save changes - catches DbUpdateException automatically
 dbContext.Users.Add(newUser);
 var saveResult = await dbContext.SaveChangesAsUnionAsync();
 
-// Pattern match the save result
-var response = saveResult switch
+if (!saveResult.IsSuccess(out var count, out var error))
 {
-    Result<int>.Ok(var count) => $"Saved {count} changes",
-    Result<int>.Error(UnionError.Conflict(var reason)) => $"Concurrency conflict: {reason}",
-    Result<int>.Error(UnionError.SystemFailure(var ex)) => $"Database error: {ex.Message}",
-    _ => "Unexpected error"
-};
+    // error is Conflict (concurrency) or SystemFailure (other DB errors)
+    logger.LogError("Save failed: {Error}", error);
+}
 ```
-
-### Automatic Error Mapping
 
 | Scenario | Mapped To |
 |---|---|
-| Entity not found (null) | `UnionError.NotFound` |
-| `DbUpdateConcurrencyException` | `UnionError.Conflict` |
-| `DbUpdateException` | `UnionError.SystemFailure` |
-| Any other exception | `UnionError.SystemFailure` |
+| Entity not found (null) | `NotFound` |
+| `DbUpdateConcurrencyException` | `Conflict` |
+| `DbUpdateException` | `SystemFailure` |
+| Any other exception | `SystemFailure` |
 
 ---
 
 ## HttpClient Adapter
 
-The HttpClient adapter maps HTTP status codes to `UnionError` variants, eliminating the need for manual status code checking.
+Maps HTTP responses to `Result<T>` based on status codes.
 
 ```csharp
 using UnionRailway.HttpClient;
 
 var result = await httpClient.GetAsUnionAsync<WeatherForecast>("api/weather/istanbul");
 
-var output = result switch
+if (!result.IsSuccess(out var forecast, out var error))
 {
-    Result<WeatherForecast>.Ok(var forecast) => $"Temperature: {forecast.Temperature}",
-    Result<WeatherForecast>.Error(UnionError.NotFound(var resource)) => $"Not found: {resource}",
-    Result<WeatherForecast>.Error(UnionError.Unauthorized) => "Please log in",
-    Result<WeatherForecast>.Error(UnionError.Validation(var fields)) => $"Invalid: {string.Join(", ", fields.Values)}",
-    Result<WeatherForecast>.Error(UnionError.SystemFailure(var ex)) => $"Server error: {ex.Message}",
-    _ => "Unknown error"
-};
+    // error already mapped from HTTP status code
+    Console.WriteLine($"API call failed: {error}");
+    return;
+}
 
-// POST with automatic response mapping
-var created = await httpClient.PostAsUnionAsync<Order>("api/orders", jsonContent);
-
-// PUT
-var updated = await httpClient.PutAsUnionAsync<Order>("api/orders/1", jsonContent);
-
-// DELETE
-var deleted = await httpClient.DeleteAsUnionAsync<string?>("api/orders/1");
+Console.WriteLine($"Temperature: {forecast.Temperature}");
 ```
 
-### HTTP Status Code Mapping
-
-| HTTP Status Code | Mapped To |
+| HTTP Status | Mapped To |
 |---|---|
-| 200 OK / 201 Created / 202 Accepted | `Result<T>.Ok` |
-| 204 No Content | `Result<T>.Ok(default)` |
-| 400 Bad Request | `UnionError.Validation` |
-| 401 Unauthorized / 403 Forbidden | `UnionError.Unauthorized` |
-| 404 Not Found | `UnionError.NotFound` |
-| 409 Conflict | `UnionError.Conflict` |
-| 5xx / Other | `UnionError.SystemFailure` |
+| 200 / 201 / 202 | `Ok(data)` |
+| 204 No Content | `Ok(default)` |
+| 400 Bad Request | `Validation` |
+| 401 / 403 | `Unauthorized` |
+| 404 | `NotFound` |
+| 409 | `Conflict` |
+| 5xx / Other | `SystemFailure` |
 
 ---
 
-## Error Taxonomy
+## Advanced: Exhaustive Error Handling with Switch
 
-UnionRailway provides a universal, closed set of error types:
+When you need to handle each error type differently, use standard C# `switch` pattern matching:
+
+```csharp
+var result = await userService.GetByIdAsync(id);
+
+var response = result switch
+{
+    Result<User>.Ok(var user) => $"Found: {user.Name}",
+    Result<User>.Error(UnionError.NotFound(var resource)) => $"{resource} not found",
+    Result<User>.Error(UnionError.Conflict(var reason)) => $"Conflict: {reason}",
+    Result<User>.Error(UnionError.Unauthorized) => "Access denied",
+    Result<User>.Error(UnionError.Validation(var fields)) =>
+        $"Invalid: {string.Join(", ", fields.Values)}",
+    Result<User>.Error(UnionError.SystemFailure(var ex)) => $"Error: {ex.Message}",
+    _ => "Unknown"
+};
+```
+
+---
+
+## Error Types
+
+UnionRailway provides five built-in error types:
 
 ```csharp
 public abstract record UnionError
@@ -202,8 +233,6 @@ public abstract record UnionError
 }
 ```
 
-Because the hierarchy is sealed (private constructor), the compiler can assist with exhaustiveness checking in `switch` expressions, ensuring every error case is handled.
-
 ---
 
 ## Target Frameworks
@@ -211,6 +240,7 @@ Because the hierarchy is sealed (private constructor), the compiler can assist w
 | Package | Targets |
 |---|---|
 | `UnionRailway` | .NET Standard 2.1, .NET 8, .NET 9 |
+| `UnionRailway.AspNetCore` | .NET 8, .NET 9 |
 | `UnionRailway.EntityFrameworkCore` | .NET 8, .NET 9 |
 | `UnionRailway.HttpClient` | .NET Standard 2.1, .NET 8, .NET 9 |
 

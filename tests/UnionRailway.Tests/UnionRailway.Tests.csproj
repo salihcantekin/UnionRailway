@@ -18,6 +18,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\UnionRailway\UnionRailway.csproj" />
+    <ProjectReference Include="..\..\src\UnionRailway.AspNetCore\UnionRailway.AspNetCore.csproj" />
     <ProjectReference Include="..\..\src\UnionRailway.EntityFrameworkCore\UnionRailway.EntityFrameworkCore.csproj" />
     <ProjectReference Include="..\..\src\UnionRailway.HttpClient\UnionRailway.HttpClient.csproj" />
   </ItemGroup>

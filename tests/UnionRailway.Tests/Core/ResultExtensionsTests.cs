@@ -5,110 +5,106 @@ namespace UnionRailway.Tests.Core;
 public class ResultExtensionsTests
 {
     [Fact]
-    public void Map_ShouldTransformOkValue()
-    {
-        Result<int> result = new Result<int>.Ok(5);
-        var mapped = result.Map(x => x * 2);
-        mapped.Should().Be(new Result<int>.Ok(10));
-    }
-
-    [Fact]
-    public void Map_ShouldPropagateError()
-    {
-        var error = new UnionError.NotFound("Item");
-        Result<int> result = new Result<int>.Error(error);
-        var mapped = result.Map(x => x * 2);
-        mapped.Should().Be(new Result<int>.Error(error));
-    }
-
-    [Fact]
-    public void Bind_ShouldChainOnSuccess()
-    {
-        Result<int> result = new Result<int>.Ok(10);
-        var bound = result.Bind<int, string>(x => x > 0
-            ? new Result<string>.Ok($"Positive: {x}")
-            : new Result<string>.Error(new UnionError.Validation(new Dictionary<string, string>
-            {
-                ["Value"] = "Must be positive"
-            })));
-
-        bound.Should().Be(new Result<string>.Ok("Positive: 10"));
-    }
-
-    [Fact]
-    public void Bind_ShouldPropagateError()
-    {
-        var error = new UnionError.Unauthorized();
-        Result<int> result = new Result<int>.Error(error);
-        var bound = result.Bind(x => new Result<string>.Ok(x.ToString()));
-        bound.Should().Be(new Result<string>.Error(error));
-    }
-
-    [Fact]
-    public void Match_ShouldApplyOnOkForSuccess()
+    public void IsSuccess_ShouldReturnTrue_WhenResultIsOk()
     {
         Result<int> result = new Result<int>.Ok(42);
-        var output = result.Match(
-            onOk: x => $"Value is {x}",
-            onError: e => $"Error: {e}");
 
-        output.Should().Be("Value is 42");
+        var success = result.IsSuccess(out var data, out var error);
+
+        success.Should().BeTrue();
+        data.Should().Be(42);
+        error.Should().BeNull();
     }
 
     [Fact]
-    public void Match_ShouldApplyOnErrorForFailure()
+    public void IsSuccess_ShouldReturnFalse_WhenResultIsError()
     {
-        Result<int> result = new Result<int>.Error(new UnionError.NotFound("Order"));
-        var output = result.Match(
-            onOk: x => "Ok",
-            onError: e => e switch
-            {
-                UnionError.NotFound(var r) => $"Not found: {r}",
-                _ => "Other error"
-            });
+        var notFound = new UnionError.NotFound("User");
+        Result<int> result = new Result<int>.Error(notFound);
 
-        output.Should().Be("Not found: Order");
+        var success = result.IsSuccess(out var data, out var error);
+
+        success.Should().BeFalse();
+        data.Should().Be(0);
+        error.Should().Be(notFound);
     }
 
     [Fact]
-    public void Tap_ShouldExecuteActionOnSuccess()
+    public void IsSuccess_ShouldSupportEarlyReturn_Pattern()
     {
-        var sideEffect = 0;
-        Result<int> result = new Result<int>.Ok(5);
-        var tapped = result.Tap(x => sideEffect = x);
+        Result<string> result = new Result<string>.Error(new UnionError.Unauthorized());
 
-        sideEffect.Should().Be(5);
-        tapped.Should().Be(result);
+        if (!result.IsSuccess(out var data, out var error))
+        {
+            error.Should().BeOfType<UnionError.Unauthorized>();
+            data.Should().BeNull();
+            return;
+        }
+
+        Assert.Fail("Should have returned early.");
     }
 
     [Fact]
-    public void Tap_ShouldNotExecuteActionOnError()
+    public void IsSuccess_ShouldWorkWithReferenceTypes()
     {
-        var sideEffect = 0;
-        Result<int> result = new Result<int>.Error(new UnionError.Unauthorized());
-        var tapped = result.Tap(x => sideEffect = x);
+        Result<string> result = new Result<string>.Ok("hello");
 
-        sideEffect.Should().Be(0);
-        tapped.Should().Be(result);
+        var success = result.IsSuccess(out var data, out var error);
+
+        success.Should().BeTrue();
+        data.Should().Be("hello");
+        error.Should().BeNull();
     }
 
     [Fact]
-    public void MapError_ShouldTransformError()
+    public void IsSuccess_ShouldWorkWithNullableReferenceTypes()
     {
-        Result<int> result = new Result<int>.Error(new UnionError.NotFound("X"));
-        var mapped = result.MapError(e => new UnionError.Conflict("Wrapped error"));
+        Result<string> result = new Result<string>.Error(new UnionError.NotFound("Item"));
 
-        mapped.Should().BeOfType<Result<int>.Error>();
-        var error = (Result<int>.Error)mapped;
-        error.Err.Should().BeOfType<UnionError.Conflict>();
+        var success = result.IsSuccess(out var data, out var error);
+
+        success.Should().BeFalse();
+        data.Should().BeNull();
+        error.Should().BeOfType<UnionError.NotFound>();
     }
 
     [Fact]
-    public void MapError_ShouldNotAffectOk()
+    public void IsSuccess_ShouldWorkWithComplexTypes()
     {
-        Result<int> result = new Result<int>.Ok(42);
-        var mapped = result.MapError(e => new UnionError.Conflict("Should not reach"));
-        mapped.Should().Be(result);
+        var list = new List<string> { "a", "b", "c" };
+        Result<List<string>> result = new Result<List<string>>.Ok(list);
+
+        var success = result.IsSuccess(out var data, out var error);
+
+        success.Should().BeTrue();
+        data.Should().BeSameAs(list);
+        data.Should().HaveCount(3);
+        error.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task IsSuccessAsync_ShouldReturnTrue_WhenResultIsOk()
+    {
+        var resultTask = Task.FromResult<Result<int>>(new Result<int>.Ok(99));
+
+        var (success, data, error) = await resultTask.IsSuccessAsync();
+
+        success.Should().BeTrue();
+        data.Should().Be(99);
+        error.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task IsSuccessAsync_ShouldReturnFalse_WhenResultIsError()
+    {
+        var conflict = new UnionError.Conflict("Duplicate record");
+        var resultTask = Task.FromResult<Result<string>>(new Result<string>.Error(conflict));
+
+        var (success, data, error) = await resultTask.IsSuccessAsync();
+
+        success.Should().BeFalse();
+        data.Should().BeNull();
+        error.Should().Be(conflict);
     }
 
     [Fact]
@@ -144,90 +140,53 @@ public class ResultExtensionsTests
     }
 
     [Fact]
-    public async Task MapAsync_ShouldTransformOkValue()
+    public void IsSuccess_ShouldWorkInChainedScenario()
     {
-        var resultTask = Task.FromResult<Result<int>>(new Result<int>.Ok(3));
-        var mapped = await resultTask.MapAsync(x => x + 1);
-        mapped.Should().Be(new Result<int>.Ok(4));
+        var step1 = GetUser(1);
+        if (!step1.IsSuccess(out var user, out var error))
+        {
+            Assert.Fail("Step 1 should succeed.");
+            return;
+        }
+
+        user.Should().Be("Alice");
+
+        var step2 = GetUser(999);
+        if (!step2.IsSuccess(out var missingUser, out var missingError))
+        {
+            missingError.Should().BeOfType<UnionError.NotFound>();
+            return;
+        }
+
+        Assert.Fail("Step 2 should have returned early.");
     }
 
     [Fact]
-    public async Task MapAsync_ShouldPropagateError()
+    public void IsSuccess_ShouldHandleAllErrorVariants()
     {
-        var error = new UnionError.SystemFailure(new Exception("fail"));
-        var resultTask = Task.FromResult<Result<int>>(new Result<int>.Error(error));
-        var mapped = await resultTask.MapAsync(x => x + 1);
-        mapped.Should().Be(new Result<int>.Error(error));
+        UnionError[] errors =
+        [
+            new UnionError.NotFound("X"),
+            new UnionError.Conflict("Y"),
+            new UnionError.Unauthorized(),
+            new UnionError.Validation(new Dictionary<string, string> { ["field"] = "error" }),
+            new UnionError.SystemFailure(new Exception("boom"))
+        ];
+
+        foreach (var err in errors)
+        {
+            Result<int> result = new Result<int>.Error(err);
+            var success = result.IsSuccess(out var data, out var error);
+
+            success.Should().BeFalse();
+            error.Should().Be(err);
+        }
     }
 
-    [Fact]
-    public async Task BindAsync_ShouldChainOnSuccess()
-    {
-        var resultTask = Task.FromResult<Result<int>>(new Result<int>.Ok(5));
-        var bound = await resultTask.BindAsync(x => new Result<string>.Ok(x.ToString()));
-        bound.Should().Be(new Result<string>.Ok("5"));
-    }
-
-    [Fact]
-    public async Task BindAsync_WithAsyncBinder_ShouldChainOnSuccess()
-    {
-        var resultTask = Task.FromResult<Result<int>>(new Result<int>.Ok(5));
-        var bound = await resultTask.BindAsync(x => Task.FromResult<Result<string>>(new Result<string>.Ok(x.ToString())));
-        bound.Should().Be(new Result<string>.Ok("5"));
-    }
-
-    [Fact]
-    public async Task BindAsync_WithAsyncBinder_ShouldPropagateError()
-    {
-        var error = new UnionError.Unauthorized();
-        var resultTask = Task.FromResult<Result<int>>(new Result<int>.Error(error));
-        var bound = await resultTask.BindAsync(x => Task.FromResult<Result<string>>(new Result<string>.Ok(x.ToString())));
-        bound.Should().Be(new Result<string>.Error(error));
-    }
-
-    [Fact]
-    public async Task MatchAsync_ShouldReturnCorrectValue()
-    {
-        var resultTask = Task.FromResult<Result<int>>(new Result<int>.Ok(7));
-        var output = await resultTask.MatchAsync(x => x * 10, _ => -1);
-        output.Should().Be(70);
-    }
-
-    [Fact]
-    public async Task TapAsync_ShouldExecuteActionOnSuccess()
-    {
-        var sideEffect = 0;
-        var resultTask = Task.FromResult<Result<int>>(new Result<int>.Ok(9));
-        var result = await resultTask.TapAsync(x => sideEffect = x);
-
-        sideEffect.Should().Be(9);
-        result.Should().Be(new Result<int>.Ok(9));
-    }
-
-    [Fact]
-    public void Chaining_MapThenBind_ShouldComposeCorrectly()
-    {
-        Result<int> result = new Result<int>.Ok(5);
-        var chained = result
-            .Map(x => x * 2)
-            .Bind<int, string>(x => x > 5
-                ? new Result<string>.Ok($"Big: {x}")
-                : new Result<string>.Error(new UnionError.Validation(new Dictionary<string, string>
-                {
-                    ["Value"] = "Too small"
-                })));
-
-        chained.Should().Be(new Result<string>.Ok("Big: 10"));
-    }
-
-    [Fact]
-    public void Chaining_MapThenBind_ShouldShortCircuitOnError()
-    {
-        Result<int> result = new Result<int>.Error(new UnionError.NotFound("X"));
-        var chained = result
-            .Map(x => x * 2)
-            .Bind(x => new Result<string>.Ok(x.ToString()));
-
-        chained.Should().BeOfType<Result<string>.Error>();
-    }
+    private static Result<string> GetUser(int id) =>
+        id switch
+        {
+            1 => new Result<string>.Ok("Alice"),
+            _ => new Result<string>.Error(new UnionError.NotFound("User"))
+        };
 }

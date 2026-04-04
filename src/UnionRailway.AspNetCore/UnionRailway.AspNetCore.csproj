@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;net9.0</TargetFrameworks>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <PackageId>UnionRailway.AspNetCore</PackageId>
+    <Authors>UnionRailway Contributors</Authors>
+    <Description>ASP.NET Core adapter for UnionRailway. Provides ToHttpResult() extension to convert union Result types into IResult for Minimal APIs and Controllers.</Description>
+    <PackageTags>csharp;union;railway;rop;error-handling;aspnetcore;minimal-api</PackageTags>
+    <RepositoryUrl>https://github.com/salihcantekin/UnionRailway</RepositoryUrl>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\UnionRailway\UnionRailway.csproj" />
+  </ItemGroup>
+
+</Project>

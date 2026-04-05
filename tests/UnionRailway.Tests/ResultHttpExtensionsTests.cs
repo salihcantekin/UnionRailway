@@ -7,7 +7,7 @@ namespace UnionRailway.Tests;
 
 public sealed class ResultHttpExtensionsTests
 {
-    // ── Tuple → IResult ──────────────────────────────────────────────
+    // ── Rail → IResult ───────────────────────────────────────────────
 
     [Fact]
     public void ToHttpResult_OkTuple_Returns200()
@@ -34,7 +34,8 @@ public sealed class ResultHttpExtensionsTests
     [Fact]
     public void ToHttpResult_NotFound_Returns404()
     {
-        var httpResult   = new UnionError.NotFound("Item").ToHttpResult();
+        UnionError error = new UnionError.NotFound("Item");
+        var httpResult   = error.ToHttpResult();
         var statusResult = Assert.IsAssignableFrom<IStatusCodeHttpResult>(httpResult);
         Assert.Equal(StatusCodes.Status404NotFound, statusResult.StatusCode);
     }
@@ -42,7 +43,8 @@ public sealed class ResultHttpExtensionsTests
     [Fact]
     public void ToHttpResult_Conflict_Returns409()
     {
-        var httpResult   = new UnionError.Conflict("Dupe").ToHttpResult();
+        UnionError error = new UnionError.Conflict("Dupe");
+        var httpResult   = error.ToHttpResult();
         var statusResult = Assert.IsAssignableFrom<IStatusCodeHttpResult>(httpResult);
         Assert.Equal(StatusCodes.Status409Conflict, statusResult.StatusCode);
     }
@@ -50,7 +52,8 @@ public sealed class ResultHttpExtensionsTests
     [Fact]
     public void ToHttpResult_Unauthorized_Returns401()
     {
-        var httpResult   = new UnionError.Unauthorized().ToHttpResult();
+        UnionError error = new UnionError.Unauthorized();
+        var httpResult   = error.ToHttpResult();
         var statusResult = Assert.IsAssignableFrom<IStatusCodeHttpResult>(httpResult);
         Assert.Equal(StatusCodes.Status401Unauthorized, statusResult.StatusCode);
     }
@@ -58,7 +61,8 @@ public sealed class ResultHttpExtensionsTests
     [Fact]
     public void ToHttpResult_Forbidden_Returns403()
     {
-        var httpResult   = new UnionError.Forbidden("No access").ToHttpResult();
+        UnionError error = new UnionError.Forbidden("No access");
+        var httpResult   = error.ToHttpResult();
         var statusResult = Assert.IsAssignableFrom<IStatusCodeHttpResult>(httpResult);
         Assert.Equal(StatusCodes.Status403Forbidden, statusResult.StatusCode);
     }
@@ -74,7 +78,8 @@ public sealed class ResultHttpExtensionsTests
     [Fact]
     public void ToHttpResult_SystemFailure_Returns500()
     {
-        var httpResult   = new UnionError.SystemFailure(new Exception("boom")).ToHttpResult();
+        UnionError error = new UnionError.SystemFailure(new Exception("boom"));
+        var httpResult   = error.ToHttpResult();
         var statusResult = Assert.IsAssignableFrom<IStatusCodeHttpResult>(httpResult);
         Assert.Equal(StatusCodes.Status500InternalServerError, statusResult.StatusCode);
     }

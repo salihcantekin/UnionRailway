@@ -11,7 +11,7 @@ using UnionRailway.HttpClient;
 /// </summary>
 sealed class PaymentGatewayClient(System.Net.Http.HttpClient http)
 {
-    public ValueTask<(PaymentResponse, UnionError?)> ChargeAsync(
+    public ValueTask<Rail<PaymentResponse>> ChargeAsync(
         PaymentRequest request, CancellationToken ct = default)
         => http.PostAsJsonAsUnionAsync<PaymentResponse>("/v1/payments/charge", request, ct);
 }

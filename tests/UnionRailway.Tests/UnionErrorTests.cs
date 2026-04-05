@@ -65,7 +65,7 @@ public sealed class UnionErrorTests
             ("Name",  ["Required"])
         ]);
 
-        var v = Assert.IsType<UnionError.Validation>(error);
+        var v = Assert.IsType<UnionError.Validation>(error.Value);
         Assert.Contains("Email", v.Fields.Keys);
         Assert.Contains("Name",  v.Fields.Keys);
     }
@@ -87,7 +87,7 @@ public sealed class UnionErrorTests
     {
         UnionError error = new UnionError.NotFound("Item");
 
-        var message = error switch
+        var message = error.Value switch
         {
             UnionError.NotFound nf      => $"not found: {nf.Resource}",
             UnionError.Conflict c       => $"conflict: {c.Reason}",
@@ -125,15 +125,20 @@ public sealed class UnionErrorTests
     // ── Sealed hierarchy ─────────────────────────────────────────────
 
     [Fact]
-    public void AllCasesAreSubtypesOfUnionError()
+    public void AllCasesCanConvertToUnionError()
     {
-        Assert.IsAssignableFrom<UnionError>(new UnionError.NotFound("r"));
-        Assert.IsAssignableFrom<UnionError>(new UnionError.Conflict("r"));
-        Assert.IsAssignableFrom<UnionError>(new UnionError.Unauthorized());
-        Assert.IsAssignableFrom<UnionError>(new UnionError.Forbidden("r"));
-        Assert.IsAssignableFrom<UnionError>(
-            new UnionError.Validation(new Dictionary<string, string[]>()));
-        Assert.IsAssignableFrom<UnionError>(
-            new UnionError.SystemFailure(new Exception()));
+        UnionError notFound = new UnionError.NotFound("r");
+        UnionError conflict = new UnionError.Conflict("r");
+        UnionError unauthorized = new UnionError.Unauthorized();
+        UnionError forbidden = new UnionError.Forbidden("r");
+        UnionError validation = new UnionError.Validation(new Dictionary<string, string[]>());
+        UnionError failure = new UnionError.SystemFailure(new Exception());
+
+        Assert.IsType<UnionError.NotFound>(notFound.Value);
+        Assert.IsType<UnionError.Conflict>(conflict.Value);
+        Assert.IsType<UnionError.Unauthorized>(unauthorized.Value);
+        Assert.IsType<UnionError.Forbidden>(forbidden.Value);
+        Assert.IsType<UnionError.Validation>(validation.Value);
+        Assert.IsType<UnionError.SystemFailure>(failure.Value);
     }
 }

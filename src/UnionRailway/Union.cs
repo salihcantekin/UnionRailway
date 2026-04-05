@@ -1,56 +1,67 @@
 namespace UnionRailway;
 
 /// <summary>
-/// Static helpers for constructing anonymous union tuples
-/// <c>(T Value, UnionError? Error)</c> — the zero-allocation discriminated-union
-/// type used throughout UnionRailway.
+/// Static helpers for constructing and combining <see cref="Rail{T}"/> values.
 /// </summary>
-/// <remarks>
-/// <para>
-/// <c>(T Value, UnionError? Error)</c> is a <see cref="System.ValueTuple{T1,T2}"/> — a plain
-/// stack-allocated struct. No extra heap objects are created compared to returning
-/// the value directly.
-/// </para>
-/// <para>
-/// Call site pattern:
-/// <code>
-/// // Returning a success:
-/// return Union.Ok(user);
-///
-/// // Returning an error:
-/// return Union.Fail&lt;User&gt;(new UnionError.NotFound("User"));
-///
-/// // Or use tuple literals directly (both are equivalent):
-/// return (user, null);
-/// return (default!, new UnionError.NotFound("User"));
-/// </code>
-/// </para>
-/// </remarks>
 public static class Union
 {
-    /// <summary>Creates a success union carrying <paramref name="value"/>.</summary>
+    /// <summary>Creates a successful rail carrying <paramref name="value"/>.</summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static (T Value, UnionError? Error) Ok<T>(T value) => (value, null);
+    public static Rail<T> Ok<T>(T value) => value;
 
-    /// <summary>Creates a failure union carrying <paramref name="error"/>.</summary>
+    /// <summary>Creates a failed rail carrying <paramref name="error"/>.</summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static (T Value, UnionError? Error) Fail<T>(UnionError error) => (default!, error);
+    public static Rail<T> Fail<T>(UnionError error) => error;
+
+    /// <summary>Creates a successful rail for operations with no meaningful value.</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Rail<Unit> Ok() => Unit.Value;
 
     /// <summary>
-    /// Combines two union values into one. Returns the first error encountered,
+    /// Combines two rails into one. Returns the first error encountered,
     /// or a pair of both success values.
     /// </summary>
-    public static ((T1 First, T2 Second) Value, UnionError? Error) Combine<T1, T2>(
-        (T1 Value, UnionError? Error) first,
-        (T2 Value, UnionError? Error) second)
+    public static Rail<(T1 First, T2 Second)> Combine<T1, T2>(
+        Rail<T1> first,
+        Rail<T2> second)
     {
-        if (first.Error is not null)  
-            return (default, first.Error);
-        
-        if (second.Error is not null) 
-            return (default, second.Error);
-        
-        return ((first.Value, second.Value), null);
+        if (first.TryGetError(out UnionError? firstError))
+        {
+            return firstError.GetValueOrDefault();
+        }
+
+        if (second.TryGetError(out UnionError? secondError))
+        {
+            return secondError.GetValueOrDefault();
+        }
+
+        return (first.Unwrap(), second.Unwrap());
+    }
+
+    /// <summary>
+    /// Combines three rails into one. Returns the first error encountered,
+    /// or a triple of all success values.
+    /// </summary>
+    public static Rail<(T1 First, T2 Second, T3 Third)> Combine<T1, T2, T3>(
+        Rail<T1> first,
+        Rail<T2> second,
+        Rail<T3> third)
+    {
+        if (first.TryGetError(out UnionError? firstError))
+        {
+            return firstError.GetValueOrDefault();
+        }
+
+        if (second.TryGetError(out UnionError? secondError))
+        {
+            return secondError.GetValueOrDefault();
+        }
+
+        if (third.TryGetError(out UnionError? thirdError))
+        {
+            return thirdError.GetValueOrDefault();
+        }
+
+        return (first.Unwrap(), second.Unwrap(), third.Unwrap());
     }
 }
-

@@ -4,7 +4,7 @@ namespace UnionRailway;
 /// A utility bridge for migrating exception-throwing legacy code into the
 /// union paradigm without rewriting services. Catches common exceptions and
 /// maps them to typed <see cref="UnionError"/> values so callers receive a
-/// predictable <c>(T Value, UnionError? Error)</c> union instead of a thrown
+/// predictable <see cref="Rail{T}"/> instead of a thrown
 /// exception.
 /// </summary>
 /// <example>
@@ -32,21 +32,13 @@ public static class UnionWrapper
     /// <see cref="OperationCanceledException"/> is always re-thrown so
     /// that cancellation propagates correctly.
     /// </summary>
-    /// <typeparam name="T">The success value type (must be a reference type).</typeparam>
+    /// <typeparam name="T">The success value type.</typeparam>
     /// <param name="action">The async delegate wrapping existing code.</param>
-    /// <returns>
-    /// A <see cref="ValueTask{TResult}"/> of <c>(T Value, UnionError? Error)</c>.
-    /// </returns>
-    public static async ValueTask<(T Value, UnionError? Error)> RunAsync<T>(
-        Func<Task<T?>> action) where T : class
+    public static async ValueTask<Rail<T>> RunAsync<T>(Func<Task<T>> action)
     {
         try
         {
-            var value = await action();
-            
-            return value is null
-                ? (default!, new UnionError.NotFound("Result"))
-                : (value, null);
+            return await action();
         }
         catch (OperationCanceledException)
         {
@@ -54,15 +46,50 @@ public static class UnionWrapper
         }
         catch (UnauthorizedAccessException)
         {
-            return (default!, new UnionError.Unauthorized());
+            return Union.Fail<T>(new UnionError.Unauthorized());
         }
         catch (KeyNotFoundException ex)
         {
-            return (default!, new UnionError.NotFound(ex.Message));
+            return Union.Fail<T>(new UnionError.NotFound(ex.Message));
         }
         catch (Exception ex)
         {
-            return (default!, new UnionError.SystemFailure(ex));
+            return Union.Fail<T>(new UnionError.SystemFailure(ex));
+        }
+    }
+
+    /// <summary>
+    /// Executes <paramref name="action"/> and maps a <see langword="null"/> return value
+    /// to <see cref="UnionError.NotFound"/>.
+    /// </summary>
+    public static async ValueTask<Rail<T>> RunNullableAsync<T>(
+        Func<Task<T?>> action,
+        string resourceName = "Result")
+        where T : class
+    {
+        try
+        {
+            var value = await action();
+
+            return value is null
+                ? Union.Fail<T>(new UnionError.NotFound(resourceName))
+                : value;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Union.Fail<T>(new UnionError.Unauthorized());
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return Union.Fail<T>(new UnionError.NotFound(ex.Message));
+        }
+        catch (Exception ex)
+        {
+            return Union.Fail<T>(new UnionError.SystemFailure(ex));
         }
     }
 }

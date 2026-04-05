@@ -1,0 +1,110 @@
+using System.Data.Common;
+using System.Linq.Expressions;
+using Microsoft.EntityFrameworkCore;
+
+namespace UnionRailway.EntityFrameworkCore;
+
+/// <summary>
+/// Extension methods that integrate EF Core queries and save operations with the
+/// <c>(T Value, UnionError? Error)</c> union pattern, eliminating null-check
+/// boilerplate and wrapping database exceptions into typed <see cref="UnionError"/>
+/// values.
+/// </summary>
+public static class DbContextExtensions
+{
+    /// <summary>
+    /// Asynchronously returns the first matching entity as a union tuple,
+    /// mapping a <see langword="null"/> result to <see cref="UnionError.NotFound"/>
+    /// and <see cref="DbException"/> to <see cref="UnionError.SystemFailure"/>.
+    /// </summary>
+    /// <typeparam name="TEntity">The entity type.</typeparam>
+    /// <param name="query">The queryable source.</param>
+    /// <param name="resourceName">Human-readable resource name used in the NotFound message.</param>
+    /// <param name="predicate">Optional filter predicate; when omitted the first row is returned.</param>
+    /// <param name="cancellationToken">Propagates notification that the operation should be cancelled.</param>
+    public static async ValueTask<(TEntity Value, UnionError? Error)> FirstOrDefaultAsUnionAsync<TEntity>(
+        this IQueryable<TEntity> query,
+        string resourceName,
+        Expression<Func<TEntity, bool>>? predicate = null,
+        CancellationToken cancellationToken = default)
+        where TEntity : class
+    {
+        try
+        {
+            var filtered = predicate is not null ? query.Where(predicate) : query;
+            var entity = await filtered.FirstOrDefaultAsync(cancellationToken);
+
+            return entity is not null
+                ? (entity, null)
+                : (default!, new UnionError.NotFound(resourceName));
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (DbException ex)
+        {
+            return (default!, new UnionError.SystemFailure(ex));
+        }
+        catch (Exception ex)
+        {
+            return (default!, new UnionError.SystemFailure(ex));
+        }
+    }
+
+    /// <summary>
+    /// Asynchronously saves all pending changes and returns the number of
+    /// affected rows. Maps concurrency and unique-constraint violations to
+    /// <see cref="UnionError.Conflict"/> and all other exceptions to
+    /// <see cref="UnionError.SystemFailure"/>.
+    /// </summary>
+    /// <param name="context">The <see cref="DbContext"/> to save.</param>
+    /// <param name="cancellationToken">Propagates notification that the operation should be cancelled.</param>
+    public static async ValueTask<(int Value, UnionError? Error)> SaveChangesAsUnionAsync(
+        this DbContext context,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            int affected = await context.SaveChangesAsync(cancellationToken);
+
+            return (affected, null);
+        }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            return (0, new UnionError.Conflict($"Concurrency conflict: {ex.Message}"));
+        }
+        catch (DbUpdateException ex) when (IsUniqueConstraintViolation(ex))
+        {
+            return (0, new UnionError.Conflict("A unique constraint violation occurred."));
+        }
+        catch (DbUpdateException ex)
+        {
+            return (0, new UnionError.SystemFailure(ex));
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            return (0, new UnionError.SystemFailure(ex));
+        }
+    }
+
+    private static bool IsUniqueConstraintViolation(DbUpdateException exception)
+    {
+        var inner = exception.InnerException;
+        
+        if (inner is null)
+            return false;
+
+        var message = inner.Message;
+
+        return message.Contains("unique", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("duplicate", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("2627", StringComparison.Ordinal)
+            || message.Contains("2601", StringComparison.Ordinal)
+            || message.Contains("23505", StringComparison.Ordinal);
+    }
+}

@@ -1,0 +1,40 @@
+## .NET / C# gitignore
+
+# Build output
+bin/
+obj/
+out/
+
+# NuGet packages
+*.nupkg
+*.snupkg
+packages/
+.nuget/
+
+# Rider / JetBrains
+.idea/
+*.sln.iml
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# VS Code (keep .vscode/launch.json and tasks.json if desired)
+# .vscode/
+
+# macOS
+.DS_Store
+
+# Test results
+TestResults/
+coverage/
+*.trx
+*.coverage
+*.coveragexml
+
+# Publish output
+publish/
+*.pubxml

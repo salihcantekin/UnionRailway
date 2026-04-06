@@ -1,92 +1,171 @@
 namespace UnionRailway;
 
 /// <summary>
-/// Zero-allocation developer-experience extension methods for the anonymous
-/// union type <c>(T Value, UnionError? Error)</c>.
+/// Developer-experience extension methods for <see cref="Rail{T}"/>.
 /// </summary>
-/// <remarks>
-/// Because <c>(T Value, UnionError? Error)</c> is a <see cref="System.ValueTuple{T1,T2}"/>
-/// (a struct), all these methods operate purely on stack memory — no heap
-/// allocations occur in any of the happy-path or error-path operations.
-/// </remarks>
 public static class UnionExtensions
 {
     /// <summary>
-    /// Deconstructs the union for the common early-return pattern.
-    /// Assigns both <paramref name="data"/> and <paramref name="error"/>
-    /// so every code path has safe, direct access.
+    /// Deconstructs the rail for the common early-return pattern.
     /// </summary>
-    /// <typeparam name="T">The success value type.</typeparam>
-    /// <param name="result">The union to inspect.</param>
-    /// <param name="data">
-    /// Set to <see cref="ValueTuple{T1,T2}.Item1"/> when <c>true</c> is returned;
-    /// otherwise <see langword="default"/>.
-    /// </param>
-    /// <param name="error">
-    /// Set to the <see cref="UnionError"/> when <c>false</c> is returned;
-    /// otherwise <see langword="null"/>.
-    /// </param>
-    /// <returns><see langword="true"/> when the union carries a success value.</returns>
-    /// <example>
-    /// <code>
-    /// if (!result.IsSuccess(out var user, out var err))
-    ///     return err!.ToHttpResult();
-    /// Console.WriteLine(user.Name); // safe — IsSuccess returned true
-    /// </code>
-    /// </example>
     public static bool IsSuccess<T>(
-        this (T Value, UnionError? Error) result,
+        this Rail<T> result,
         [MaybeNull] out T data,
         out UnionError? error)
     {
-        data  = result.Value;
-        error = result.Error;
-
-        return result.Error is null;
+        var isSuccess = result.TryGetValue(out data);
+        error = result.TryGetError(out var foundError) ? foundError : default;
+        return isSuccess;
     }
 
     /// <summary>
-    /// Returns the success value, or throws <see cref="UnwrapException"/>
-    /// when the union carries an error.
+    /// Returns the success value, or throws <see cref="UnwrapException"/> when the rail carries an error.
     /// </summary>
-    /// <exception cref="UnwrapException">
-    /// Thrown when <c>result.Error</c> is not <see langword="null"/>.
-    /// </exception>
-    public static T Unwrap<T>(this (T Value, UnionError? Error) result)
+    public static T Unwrap<T>(this Rail<T> result)
     {
-        if (result.Error is not null)
-            throw new UnwrapException(result.Error);
+        if (result.TryGetError(out var error))
+        {
+            throw new UnwrapException(error);
+        }
 
-        return result.Value;
+        if (result.TryGetValue(out var value))
+        {
+            return value;
+        }
+
+        throw new UnwrapException(null);
     }
 
     /// <summary>
     /// Returns the success value when present; otherwise <paramref name="defaultValue"/>.
-    /// Never throws.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static T UnwrapOrDefault<T>(
-        this (T Value, UnionError? Error) result,
-        T defaultValue)
-        => result.Error is null ? result.Value : defaultValue;
+    public static T UnwrapOrDefault<T>(this Rail<T> result, T defaultValue) =>
+        result.TryGetValue(out var value) ? value : defaultValue;
 
     /// <summary>
-    /// Routes the union to either <paramref name="onOk"/> or <paramref name="onError"/>,
-    /// both of which must produce a <typeparamref name="TResult"/>.
+    /// Routes the rail to either <paramref name="onOk"/> or <paramref name="onError"/>.
     /// </summary>
-    /// <typeparam name="T">The success value type.</typeparam>
-    /// <typeparam name="TResult">The output type produced by both branches.</typeparam>
-    /// <param name="result">The union to match.</param>
-    /// <param name="onOk">Invoked with the success value when the union is successful.</param>
-    /// <param name="onError">Invoked with the error when the union has failed.</param>
     public static TResult Match<T, TResult>(
-        this (T Value, UnionError? Error) result,
+        this Rail<T> result,
         Func<T, TResult> onOk,
         Func<UnionError, TResult> onError)
     {
         ArgumentNullException.ThrowIfNull(onOk);
         ArgumentNullException.ThrowIfNull(onError);
-        
-        return result.Error is null ? onOk(result.Value) : onError(result.Error);
+
+        if (result.TryGetValue(out var value))
+        {
+            return onOk(value);
+        }
+
+        if (result.TryGetError(out var error))
+        {
+            return onError(error.GetValueOrDefault());
+        }
+
+        throw new UnwrapException(null);
+    }
+
+    /// <summary>Transforms the success value and preserves any error.</summary>
+    public static Rail<TOut> Map<T, TOut>(this Rail<T> result, Func<T, TOut> mapper)
+    {
+        ArgumentNullException.ThrowIfNull(mapper);
+
+        if (result.TryGetError(out var error))
+        {
+            return error.GetValueOrDefault();
+        }
+
+        if (result.TryGetValue(out var value))
+        {
+            return mapper(value);
+        }
+
+        return Union.Fail<TOut>(new UnionError.SystemFailure(new InvalidOperationException("Rail result was uninitialized.")));
+    }
+
+    /// <summary>Transforms the success value asynchronously and preserves any error.</summary>
+    public static async ValueTask<Rail<TOut>> MapAsync<T, TOut>(
+        this Rail<T> result,
+        Func<T, ValueTask<TOut>> mapper)
+    {
+        ArgumentNullException.ThrowIfNull(mapper);
+
+        if (result.TryGetError(out var error))
+        {
+            return error.GetValueOrDefault();
+        }
+
+        if (result.TryGetValue(out var value))
+        {
+            return await mapper(value);
+        }
+
+        return Union.Fail<TOut>(new UnionError.SystemFailure(new InvalidOperationException("Rail result was uninitialized.")));
+    }
+
+    /// <summary>Binds the success value to another rail and preserves any error.</summary>
+    public static Rail<TOut> Bind<T, TOut>(this Rail<T> result, Func<T, Rail<TOut>> binder)
+    {
+        ArgumentNullException.ThrowIfNull(binder);
+
+        if (result.TryGetError(out var error))
+        {
+            return error.GetValueOrDefault();
+        }
+
+        if (result.TryGetValue(out var value))
+        {
+            return binder(value);
+        }
+
+        return Union.Fail<TOut>(new UnionError.SystemFailure(new InvalidOperationException("Rail result was uninitialized.")));
+    }
+
+    /// <summary>Binds the success value to another rail asynchronously and preserves any error.</summary>
+    public static async ValueTask<Rail<TOut>> BindAsync<T, TOut>(
+        this Rail<T> result,
+        Func<T, ValueTask<Rail<TOut>>> binder)
+    {
+        ArgumentNullException.ThrowIfNull(binder);
+
+        if (result.TryGetError(out var error))
+        {
+            return error.GetValueOrDefault();
+        }
+
+        if (result.TryGetValue(out var value))
+        {
+            return await binder(value);
+        }
+
+        return Union.Fail<TOut>(new UnionError.SystemFailure(new InvalidOperationException("Rail result was uninitialized.")));
+    }
+
+    /// <summary>Executes a side effect for a success value and returns the original rail.</summary>
+    public static Rail<T> Tap<T>(this Rail<T> result, Action<T> onOk)
+    {
+        ArgumentNullException.ThrowIfNull(onOk);
+
+        if (result.TryGetValue(out var value))
+        {
+            onOk(value);
+        }
+
+        return result;
+    }
+
+    /// <summary>Executes a side effect for a success value asynchronously and returns the original rail.</summary>
+    public static async ValueTask<Rail<T>> TapAsync<T>(this Rail<T> result, Func<T, ValueTask> onOk)
+    {
+        ArgumentNullException.ThrowIfNull(onOk);
+
+        if (result.TryGetValue(out var value))
+        {
+            await onOk(value);
+        }
+
+        return result;
     }
 }

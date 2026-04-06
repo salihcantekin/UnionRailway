@@ -7,6 +7,13 @@ namespace UnionRailway.Tests;
 
 public sealed class HttpClientExtensionsTests
 {
+    private static TError AssertError<T, TError>(Rail<T> result)
+        where TError : class
+    {
+        Assert.True(result.TryGetError(out var error));
+        return Assert.IsType<TError>(error.GetValueOrDefault().Value);
+    }
+
     // ── Helpers ─────────────────────────────────────────────────────
 
     private static System.Net.Http.HttpClient MakeClient(
@@ -50,7 +57,6 @@ public sealed class HttpClientExtensionsTests
 
         var result = await client.GetFromJsonAsUnionAsync<PersonDto>("/people/1");
 
-        Assert.Null(result.Error);
         Assert.Equal("Alice", result.Unwrap().Name);
     }
 
@@ -62,7 +68,6 @@ public sealed class HttpClientExtensionsTests
 
         var result = await client.GetFromJsonAsUnionAsync<PersonDto>("/people");
 
-        Assert.Null(result.Error);
         Assert.Equal("Bob", result.Unwrap().Name);
     }
 
@@ -80,8 +85,7 @@ public sealed class HttpClientExtensionsTests
 
         var result = await client.GetFromJsonAsUnionAsync<PersonDto>("/people");
 
-        Assert.NotNull(result.Error);
-        var v = Assert.IsType<UnionError.Validation>(result.Error);
+        var v = AssertError<PersonDto, UnionError.Validation>(result);
         Assert.Contains("Email", v.Fields.Keys);
         Assert.Contains("Name",  v.Fields.Keys);
     }
@@ -95,8 +99,7 @@ public sealed class HttpClientExtensionsTests
 
         var result = await client.GetFromJsonAsUnionAsync<PersonDto>("/people/999");
 
-        Assert.NotNull(result.Error);
-        Assert.IsType<UnionError.NotFound>(result.Error);
+        AssertError<PersonDto, UnionError.NotFound>(result);
     }
 
     // ── 401 Unauthorized ────────────────────────────────────────────
@@ -108,8 +111,7 @@ public sealed class HttpClientExtensionsTests
 
         var result = await client.GetFromJsonAsUnionAsync<PersonDto>("/secure");
 
-        Assert.NotNull(result.Error);
-        Assert.IsType<UnionError.Unauthorized>(result.Error);
+        AssertError<PersonDto, UnionError.Unauthorized>(result);
     }
 
     // ── DELETE helper ───────────────────────────────────────────────
@@ -121,7 +123,6 @@ public sealed class HttpClientExtensionsTests
 
         var result = await client.DeleteAsUnionAsync("/items/1");
 
-        Assert.Null(result.Error);
-        Assert.True(result.Value);
+        Assert.Equal(Unit.Value, result.Unwrap());
     }
 }

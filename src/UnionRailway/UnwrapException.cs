@@ -7,10 +7,10 @@ namespace UnionRailway;
 public sealed class UnwrapException : InvalidOperationException
 {
     /// <summary>The error that caused the unwrap to fail.</summary>
-    public UnionError Error { get; }
+    public UnionError? Error { get; }
 
-    internal UnwrapException(UnionError error)
-        : base($"Cannot unwrap a failed union. Error: {error}")
+    internal UnwrapException(UnionError? error)
+        : base($"Cannot unwrap a failed rail result. Error: {error}")
     {
         Error = error;
     }

@@ -70,7 +70,7 @@ async Task GetNonExistentProduct()
 
     var (_, err) = await productSvc.GetByIdAsync(999);
 
-    switch (err)
+    switch (err?.Value)
     {
         case UnionError.NotFound nf:
             Fail($"404 — resource '{nf.Resource}' does not exist");
@@ -113,7 +113,7 @@ async Task OrderValidationFailure()
     var req = new CreateOrderRequest(CustomerId: 42, ProductId: 1, Quantity: 0);
     var (_, err) = await orderSvc.PlaceOrderAsync(req, cardToken: "");
 
-    switch (err)
+    switch (err?.Value)
     {
         case UnionError.Validation v:
             Fail("400 — validation errors (no DB round-trip made):");
@@ -135,7 +135,7 @@ async Task OrderWithInsufficientStock()
     var req = new CreateOrderRequest(CustomerId: 42, ProductId: 2, Quantity: 50);
     var (_, err) = await orderSvc.PlaceOrderAsync(req, cardToken: "card-valid");
 
-    switch (err)
+    switch (err?.Value)
     {
         case UnionError.Conflict c:
             Fail($"409 — {c.Reason}");
@@ -157,7 +157,7 @@ async Task OrderWithDeclinedCard()
     var req = new CreateOrderRequest(CustomerId: 42, ProductId: 1, Quantity: 1);
     var (_, err) = await orderSvc.PlaceOrderAsync(req, cardToken: "card-declined");
 
-    switch (err)
+    switch (err?.Value)
     {
         case UnionError.Conflict c:
             Fail($"409 — payment declined: {c.Reason}");
@@ -184,7 +184,7 @@ async Task OrderWithBlockedCard()
     var req = new CreateOrderRequest(CustomerId: 42, ProductId: 1, Quantity: 1);
     var (_, err) = await orderSvc.PlaceOrderAsync(req, cardToken: "card-stolen");
 
-    switch (err)
+    switch (err?.Value)
     {
         case UnionError.Forbidden f:
             Fail($"403 — {f.Reason}");
@@ -215,7 +215,7 @@ async Task CreateProductWithBadInput()
     var (_, err) = await productSvc.CreateAsync(
         name: "", sku: "X", price: -5m, stock: 10);
 
-    switch (err)
+    switch (err?.Value)
     {
         case UnionError.Validation v:
             Fail("400 — validation errors:");
@@ -236,7 +236,7 @@ async Task DuplicateSkuConflict()
     var (_, err) = await productSvc.CreateAsync(
         name: "Another Gadget", sku: "BGT-002", price: 12.99m, stock: 5);
 
-    switch (err)
+    switch (err?.Value)
     {
         case UnionError.Conflict c:
             Fail($"409 — {c.Reason}");
@@ -255,7 +255,7 @@ async Task LookupBySku()
     {
         var (product, err) = await productSvc.GetBySkuAsync(sku);
 
-        var line = err switch
+        var line = err?.Value switch
         {
             null                => $"✓  {sku,-14}  →  {product}",
             UnionError.NotFound => $"✗  {sku,-14}  →  not found",

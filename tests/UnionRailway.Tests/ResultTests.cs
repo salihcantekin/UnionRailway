@@ -3,11 +3,18 @@ using UnionRailway;
 namespace UnionRailway.Tests;
 
 /// <summary>
-/// Tests for the zero-allocation Union helpers (<see cref="Union"/>) and
-/// the <see cref="UnionExtensions"/> operating on <c>(T Value, UnionError? Error)</c>.
+/// Tests for the rail helpers (<see cref="Union"/>) and
+/// the <see cref="UnionExtensions"/> operating on <see cref="Rail{T}"/>.
 /// </summary>
 public sealed class UnionTests
 {
+    private static TError AssertError<T, TError>(Rail<T> result)
+        where TError : class
+    {
+        Assert.True(result.TryGetError(out var error));
+        return Assert.IsType<TError>(error.GetValueOrDefault().Value);
+    }
+
     // ── Union.Ok / Union.Fail ──────────────────────────────────────────
 
     [Fact]
@@ -15,8 +22,8 @@ public sealed class UnionTests
     {
         var result = Union.Ok(42);
 
-        Assert.Null(result.Error);
-        Assert.Equal(42, result.Value);
+        Assert.False(result.TryGetError(out _));
+        Assert.Equal(42, result.Unwrap());
     }
 
     [Fact]
@@ -24,28 +31,29 @@ public sealed class UnionTests
     {
         var result = Union.Fail<int>(new UnionError.Unauthorized());
 
-        Assert.NotNull(result.Error);
-        Assert.IsType<UnionError.Unauthorized>(result.Error);
+        AssertError<int, UnionError.Unauthorized>(result);
     }
 
-    // ── Tuple literals ────────────────────────────────────────────────
+    // ── Deconstruction ────────────────────────────────────────────────
 
     [Fact]
-    public void TupleLiteral_SuccessPath_ErrorIsNull()
+    public void Deconstruct_SuccessPath_ErrorIsNull()
     {
-        (string Value, UnionError? Error) result = ("hello", null);
+        Rail<string> result = Union.Ok("hello");
+        var (value, error) = result;
 
-        Assert.Null(result.Error);
-        Assert.Equal("hello", result.Value);
+        Assert.Null(error);
+        Assert.Equal("hello", value);
     }
 
     [Fact]
-    public void TupleLiteral_ErrorPath_ErrorIsSet()
+    public void Deconstruct_ErrorPath_ErrorIsSet()
     {
-        (string Value, UnionError? Error) result = (default!, new UnionError.NotFound("file"));
+        Rail<string> result = Union.Fail<string>(new UnionError.NotFound("file"));
+        var (_, error) = result;
 
-        Assert.NotNull(result.Error);
-        Assert.IsType<UnionError.NotFound>(result.Error);
+        Assert.NotNull(error);
+        Assert.IsType<UnionError.NotFound>(error.GetValueOrDefault().Value);
     }
 
     // ── IsSuccess ─────────────────────────────────────────────────────
@@ -67,7 +75,7 @@ public sealed class UnionTests
 
         Assert.False(result.IsSuccess(out var data, out var error));
         Assert.NotNull(error);
-        Assert.IsType<UnionError.NotFound>(error);
+        Assert.IsType<UnionError.NotFound>(error.GetValueOrDefault().Value);
     }
 
     // ── Unwrap ────────────────────────────────────────────────────────
@@ -86,7 +94,8 @@ public sealed class UnionTests
         var result = Union.Fail<int>(new UnionError.Unauthorized());
 
         var ex = Assert.Throws<UnwrapException>(() => result.Unwrap());
-        Assert.IsType<UnionError.Unauthorized>(ex.Error);
+        Assert.NotNull(ex.Error);
+        Assert.IsType<UnionError.Unauthorized>(ex.Error.GetValueOrDefault().Value);
     }
 
     // ── UnwrapOrDefault ───────────────────────────────────────────────
@@ -128,7 +137,7 @@ public sealed class UnionTests
 
         var output = result.Match(
             onOk:    _ => "ok",
-            onError: err => err switch
+            onError: err => err.Value switch
             {
                 UnionError.Forbidden f => $"forbidden: {f.Reason}",
                 _                     => "other"
@@ -163,7 +172,6 @@ public sealed class UnionTests
 
         var combined = Union.Combine(r1, r2);
 
-        Assert.Null(combined.Error);
         var (name, age) = combined.Unwrap();
         Assert.Equal("Alice", name);
         Assert.Equal(30, age);
@@ -177,8 +185,7 @@ public sealed class UnionTests
 
         var combined = Union.Combine(r1, r2);
 
-        Assert.NotNull(combined.Error);
-        Assert.IsType<UnionError.Validation>(combined.Error);
+        AssertError<(string First, int Second), UnionError.Validation>(combined);
     }
 
     [Fact]
@@ -189,7 +196,23 @@ public sealed class UnionTests
 
         var combined = Union.Combine(r1, r2);
 
-        Assert.NotNull(combined.Error);
-        Assert.IsType<UnionError.Conflict>(combined.Error);
+        AssertError<(string First, int Second), UnionError.Conflict>(combined);
+    }
+
+    [Fact]
+    public void Map_WhenOk_TransformsValue()
+    {
+        var result = Union.Ok(5).Map(x => x * 2);
+
+        Assert.Equal(10, result.Unwrap());
+    }
+
+    [Fact]
+    public void Bind_WhenError_PropagatesError()
+    {
+        var result = Union.Fail<int>(new UnionError.Conflict("dupe"))
+            .Bind(x => Union.Ok(x * 2));
+
+        AssertError<int, UnionError.Conflict>(result);
     }
 }

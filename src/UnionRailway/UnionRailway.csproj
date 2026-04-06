@@ -1,9 +1,27 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
 
   <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
+    <TargetFrameworks>net8.0;net9.0;net11.0</TargetFrameworks>
+    <RestoreTargetFrameworks>$(TargetFrameworks)</RestoreTargetFrameworks>
     <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>preview</LangVersion>
     <Nullable>enable</Nullable>
+    <IsPackable>true</IsPackable>
+    <PackageId>UnionRailway</PackageId>
+    <Title>UnionRailway</Title>
+    <Description>Native-union-ready railway programming for C# with semantic errors and first-class ASP.NET Core, HttpClient, and EF Core integration.</Description>
+    <Authors>Salih Cantekin</Authors>
+    <PackageTags>railway-oriented-programming;rop;union;discriminated-union;result;aspnetcore;efcore;httpclient</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/salihcantekin/UnionRailway</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/salihcantekin/UnionRailway</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
   </PropertyGroup>
 
 </Project>

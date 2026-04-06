@@ -1,15 +1,29 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <ProjectReference Include="..\UnionRailway\UnionRailway.csproj" />
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 
   <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
+    <TargetFrameworks>net8.0;net9.0;net11.0</TargetFrameworks>
+    <RestoreTargetFrameworks>$(TargetFrameworks)</RestoreTargetFrameworks>
     <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>preview</LangVersion>
     <Nullable>enable</Nullable>
     <IsPackable>true</IsPackable>
+    <PackageId>UnionRailway.AspNetCore</PackageId>
+    <Title>UnionRailway.AspNetCore</Title>
+    <Description>ASP.NET Core integration for UnionRailway with RFC 7807 ProblemDetails mapping for Rail&lt;T&gt; and UnionError.</Description>
+    <Authors>Salih Cantekin</Authors>
+    <PackageTags>railway-oriented-programming;rop;union;aspnetcore;minimal-api;problemdetails;rfc7807</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/salihcantekin/UnionRailway</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/salihcantekin/UnionRailway</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
   </PropertyGroup>
 
 </Project>

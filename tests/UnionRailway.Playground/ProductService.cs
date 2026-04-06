@@ -5,21 +5,21 @@ using UnionRailway.EntityFrameworkCore;
 /// <summary>
 /// Product catalog service integrated with UnionRailway.
 ///
-/// Every method returns <c>(T Value, UnionError? Error)</c> instead of throwing
-/// or returning null — callers handle all outcomes explicitly and the compiler
-/// enforces that errors cannot be silently ignored.
+/// Every method returns <see cref="Rail{T}"/> instead of throwing or returning
+/// null — callers handle all outcomes explicitly and can still deconstruct the
+/// result into value/error slots when desired.
 /// </summary>
 sealed class ProductService(AppDbContext db)
 {
     // ── Queries ───────────────────────────────────────────────────────────────
 
     /// <summary>Returns the product with the given ID, or NotFound.</summary>
-    public ValueTask<(Product, UnionError?)> GetByIdAsync(
+    public ValueTask<Rail<Product>> GetByIdAsync(
         int id, CancellationToken ct = default)
         => db.Products.FirstOrDefaultAsUnionAsync("Product", p => p.Id == id, ct);
 
     /// <summary>Returns the product matching the given SKU, or NotFound.</summary>
-    public ValueTask<(Product, UnionError?)> GetBySkuAsync(
+    public ValueTask<Rail<Product>> GetBySkuAsync(
         string sku, CancellationToken ct = default)
         => db.Products.FirstOrDefaultAsUnionAsync("Product", p => p.Sku == sku, ct);
 
@@ -29,7 +29,7 @@ sealed class ProductService(AppDbContext db)
     /// Creates a new product after validating inputs and checking for SKU uniqueness.
     /// Returns Validation if inputs are invalid, Conflict if the SKU already exists.
     /// </summary>
-    public async ValueTask<(Product, UnionError?)> CreateAsync(
+    public async ValueTask<Rail<Product>> CreateAsync(
         string name, string sku, decimal price, int stock,
         CancellationToken ct = default)
     {
@@ -54,7 +54,7 @@ sealed class ProductService(AppDbContext db)
 
         var (_, saveErr) = await db.SaveChangesAsUnionAsync(ct);
         return saveErr is not null
-            ? Union.Fail<Product>(saveErr)
+            ? Union.Fail<Product>(saveErr.GetValueOrDefault())
             : Union.Ok(product);
     }
 
@@ -62,14 +62,14 @@ sealed class ProductService(AppDbContext db)
     /// Decrements stock by <paramref name="qty"/>.
     /// Returns NotFound if the product doesn't exist, Conflict if stock is insufficient.
     /// </summary>
-    public async ValueTask<(bool, UnionError?)> DeductStockAsync(
+    public async ValueTask<Rail<Unit>> DeductStockAsync(
         int productId, int qty, CancellationToken ct = default)
     {
         var (product, err) = await GetByIdAsync(productId, ct);
-        if (err is not null) return Union.Fail<bool>(err);
+        if (err is not null) return Union.Fail<Unit>(err.GetValueOrDefault());
 
         if (product!.StockQty < qty)
-            return Union.Fail<bool>(new UnionError.Conflict(
+            return Union.Fail<Unit>(new UnionError.Conflict(
                 $"Insufficient stock for '{product.Name}': " +
                 $"requested {qty}, available {product.StockQty}"));
 
@@ -77,7 +77,7 @@ sealed class ProductService(AppDbContext db)
 
         var (_, saveErr) = await db.SaveChangesAsUnionAsync(ct);
         return saveErr is not null
-            ? Union.Fail<bool>(saveErr)
-            : Union.Ok(true);
+            ? Union.Fail<Unit>(saveErr.GetValueOrDefault())
+            : Union.Ok();
     }
 }

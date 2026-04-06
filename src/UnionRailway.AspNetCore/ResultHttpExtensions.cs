@@ -4,29 +4,49 @@ using Microsoft.AspNetCore.Mvc;
 namespace UnionRailway.AspNetCore;
 
 /// <summary>
-/// Extension methods for translating <c>(T Value, UnionError? Error)</c> union tuples
-/// and <see cref="UnionError"/> values into ASP.NET Core <see cref="IResult"/>
+/// Extension methods for translating <see cref="Rail{T}"/> values and
+/// <see cref="UnionError"/> values into ASP.NET Core <see cref="IResult"/>
 /// responses with full RFC 7807 <see cref="ProblemDetails"/> mapping.
 /// </summary>
 public static class ResultHttpExtensions
 {
     /// <summary>
-    /// Converts a union tuple to an <see cref="IResult"/>:
+    /// Converts an asynchronous rail to an <see cref="IResult"/>.
+    /// </summary>
+    public static async Task<IResult> ToHttpResultAsync<T>(
+        this Task<Rail<T>> resultTask,
+        string? createdUri = null)
+    {
+        ArgumentNullException.ThrowIfNull(resultTask);
+        return (await resultTask).ToHttpResult(createdUri);
+    }
+
+    /// <summary>
+    /// Converts an asynchronous rail to an <see cref="IResult"/>.
+    /// </summary>
+    public static async ValueTask<IResult> ToHttpResultAsync<T>(
+        this ValueTask<Rail<T>> resultTask,
+        string? createdUri = null) =>
+        (await resultTask).ToHttpResult(createdUri);
+
+    /// <summary>
+    /// Converts a rail to an <see cref="IResult"/>:
     /// <list type="bullet">
     ///   <item>Success → <c>200 OK</c>, or <c>201 Created</c> when <paramref name="createdUri"/> is supplied.</item>
     ///   <item>Error → delegates to <see cref="ToHttpResult(UnionError)"/>.</item>
     /// </list>
     /// </summary>
     public static IResult ToHttpResult<T>(
-        this (T Value, UnionError? Error) result,
+        this Rail<T> result,
         string? createdUri = null)
     {
-        if (result.Error is not null)
-            return result.Error.ToHttpResult();
+        if (result.TryGetError(out var error))
+            return error.GetValueOrDefault().ToHttpResult();
 
+        var value = result.Unwrap();
         return createdUri is not null
-            ? Results.Created(createdUri, result.Value)
-            : Results.Ok(result.Value);
+            ? Results.Created(createdUri, value)
+            : Results.Ok(value);
     }
 
     /// <summary>
@@ -41,7 +61,7 @@ public static class ResultHttpExtensions
     ///   <item><see cref="UnionError.SystemFailure"/> → 500 Internal Server Error</item>
     /// </list>
     /// </summary>
-    public static IResult ToHttpResult(this UnionError error) => error switch
+    public static IResult ToHttpResult(this UnionError error) => error.Value switch
     {
         UnionError.NotFound nf =>
             Results.Problem(

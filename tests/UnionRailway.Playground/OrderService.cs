@@ -11,7 +11,7 @@ using UnionRailway.EntityFrameworkCore;
 /// </summary>
 sealed class OrderService(AppDbContext db, ProductService products, PaymentGatewayClient payments)
 {
-    public async ValueTask<(Order, UnionError?)> PlaceOrderAsync(
+    public async ValueTask<Rail<Order>> PlaceOrderAsync(
         CreateOrderRequest req, string cardToken, CancellationToken ct = default)
     {
         // ── Step 1: validate the request fields ───────────────────────────────
@@ -29,12 +29,12 @@ sealed class OrderService(AppDbContext db, ProductService products, PaymentGatew
         // ── Step 2: look up the product ───────────────────────────────────────
         // Propagates NotFound automatically if the product doesn't exist.
         var (product, productErr) = await products.GetByIdAsync(req.ProductId, ct);
-        if (productErr is not null) return Union.Fail<Order>(productErr);
+        if (productErr is not null) return Union.Fail<Order>(productErr.GetValueOrDefault());
 
         // ── Step 3: reserve stock ─────────────────────────────────────────────
         // Propagates Conflict if the requested quantity exceeds available stock.
         var (_, stockErr) = await products.DeductStockAsync(req.ProductId, req.Quantity, ct);
-        if (stockErr is not null) return Union.Fail<Order>(stockErr);
+        if (stockErr is not null) return Union.Fail<Order>(stockErr.GetValueOrDefault());
 
         var total = product!.Price * req.Quantity;
 
@@ -50,7 +50,7 @@ sealed class OrderService(AppDbContext db, ProductService products, PaymentGatew
             // available again before propagating the payment error upward.
             product.StockQty += req.Quantity;
             await db.SaveChangesAsync(ct);
-            return Union.Fail<Order>(paymentErr);
+            return Union.Fail<Order>(paymentErr.GetValueOrDefault());
         }
 
         // ── Step 5: persist the confirmed order ───────────────────────────────
@@ -68,7 +68,7 @@ sealed class OrderService(AppDbContext db, ProductService products, PaymentGatew
 
         var (_, saveErr) = await db.SaveChangesAsUnionAsync(ct);
         return saveErr is not null
-            ? Union.Fail<Order>(saveErr)
+            ? Union.Fail<Order>(saveErr.GetValueOrDefault())
             : Union.Ok(order);
     }
 }

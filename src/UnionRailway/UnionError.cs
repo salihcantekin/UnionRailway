@@ -1,87 +1,175 @@
-using System.Collections.ObjectModel;
-
 namespace UnionRailway;
 
 /// <summary>
-/// A closed discriminated union of every error category an operation can produce.
-/// Use the nested record cases as type-safe variants and pattern-match exhaustively
-/// with <c>switch</c> or <c>is</c>:
+/// A closed union of every error category an operation can produce.
+/// The shape follows the custom union pattern so it can migrate naturally to
+/// native C# union support.
 /// <code>
-/// var message = error switch
+/// UnionError error = new UnionError.NotFound("User");
+///
+/// var message = error.Value switch
 /// {
-///     UnionError.NotFound nf      =&gt; $"'{nf.Resource}' not found",
-///     UnionError.Conflict c       =&gt; $"Conflict: {c.Reason}",
-///     UnionError.Unauthorized     =&gt; "Authentication required",
-///     UnionError.Forbidden f      =&gt; $"Access denied: {f.Reason}",
-///     UnionError.Validation v     =&gt; $"{v.Fields.Count} field(s) invalid",
-///     UnionError.SystemFailure sf =&gt; sf.Ex.Message,
-///     _                           =&gt; "Unknown error"
+///     UnionError.NotFound nf      = $"'{nf.Resource}' not found",
+///     UnionError.Conflict c       = $"Conflict: {c.Reason}",
+///     UnionError.Unauthorized     = "Authentication required",
+///     UnionError.Forbidden f      = $"Access denied: {f.Reason}",
+///     UnionError.Validation v     = $"{v.Fields.Count} field(s) invalid",
+///     UnionError.SystemFailure sf = sf.Ex.Message,
+///     null                        = "Unknown error"
 /// };
 /// </code>
-/// The <see langword="private protected"/> constructor seals this hierarchy — only
-/// the nested cases defined here can extend <see cref="UnionError"/>.
 /// </summary>
-public abstract record UnionError
+#if NET11_0_OR_GREATER
+public union UnionError(
+    UnionError.NotFound,
+    UnionError.Conflict,
+    UnionError.Unauthorized,
+    UnionError.Forbidden,
+    UnionError.Validation,
+    UnionError.SystemFailure)
 {
-    private protected UnionError() { }
+    /// <summary>Returns <see langword="true"/> when the union is the default value.</summary>
+    public bool IsDefault => Value is null;
+
+    /// <summary>Attempts to read the underlying case as <typeparamref name="TCase"/>.</summary>
+    public bool TryGet<TCase>([NotNullWhen(true)] out TCase? error)
+        where TCase : class
+    {
+        error = Value as TCase;
+        return error is not null;
+    }
 
     // ── Case types ──────────────────────────────────────────────────────────
 
     /// <summary>The requested resource was not found.</summary>
     /// <param name="Resource">Name or identifier of the missing resource.</param>
-    public sealed record NotFound(string Resource) : UnionError;
+    public sealed record NotFound(string Resource);
 
     /// <summary>The operation conflicts with existing state (e.g., duplicate key).</summary>
     /// <param name="Reason">Human-readable explanation of the conflict.</param>
-    public sealed record Conflict(string Reason) : UnionError;
+    public sealed record Conflict(string Reason);
 
     /// <summary>The caller is not authenticated.</summary>
-    public sealed record Unauthorized() : UnionError;
+    public sealed record Unauthorized();
 
     /// <summary>The caller is authenticated but lacks permission for this operation.</summary>
     /// <param name="Reason">Human-readable explanation of why access was denied.</param>
-    public sealed record Forbidden(string Reason) : UnionError;
+    public sealed record Forbidden(string Reason);
 
     /// <summary>One or more input fields failed validation.</summary>
     /// <param name="Fields">Per-field error messages keyed by field name.</param>
-    public sealed record Validation(IReadOnlyDictionary<string, string[]> Fields) : UnionError;
+    public sealed record Validation(IReadOnlyDictionary<string, string[]> Fields);
 
     /// <summary>An unexpected system-level failure occurred.</summary>
     /// <param name="Ex">The originating exception.</param>
-    public sealed record SystemFailure(Exception Ex) : UnionError;
+    public sealed record SystemFailure(Exception Ex);
 
     // ── Validation constructors (overloads on the Validation record) ──────────
 
     /// <summary>Creates a <see cref="Validation"/> error from a field-errors dictionary.</summary>
-    public static Validation CreateValidation(IDictionary<string, string[]> fields) =>
-        new(new ReadOnlyDictionary<string, string[]>(
-                new Dictionary<string, string[]>(fields, StringComparer.Ordinal)));
+    public static UnionError CreateValidation(IDictionary<string, string[]> fields) =>
+        new Validation(new ReadOnlyDictionary<string, string[]>(
+            new Dictionary<string, string[]>(fields, StringComparer.Ordinal)));
 
     /// <summary>
     /// Creates a <see cref="Validation"/> error from field/message tuple pairs:
     /// <code>UnionError.CreateValidation([("Email", ["Invalid"]), ("Name", ["Required"])])</code>
     /// </summary>
-    public static Validation CreateValidation(IEnumerable<(string Field, string[] Messages)> pairs) =>
-        new(pairs.ToDictionary(p => p.Field, p => p.Messages, StringComparer.Ordinal)
-                 .AsReadOnly());
+    public static UnionError CreateValidation(IEnumerable<(string Field, string[] Messages)> pairs) =>
+        new Validation(new ReadOnlyDictionary<string, string[]>(
+            pairs.ToDictionary(p => p.Field, p => p.Messages, StringComparer.Ordinal)));
 }
-
-// ── Kept for source-compatible access to former UnionErrorKind usages ────────
-// Remove in the next major version; pattern-match on UnionError subtypes instead.
-[Obsolete("Match directly on the UnionError subtype instead of comparing Kind values.")]
-public enum UnionErrorKind
+#else
+[System.Runtime.CompilerServices.Union]
+public readonly struct UnionError : IEquatable<UnionError>, System.Runtime.CompilerServices.IUnion
 {
-    /// <summary>A requested resource was not found.</summary>
-    NotFound,
+    private readonly object? value;
 
-    /// <summary>Operation conflict.</summary>
-    Conflict,
-    /// <summary>Caller not authenticated.</summary>
-    Unauthorized,
-    /// <summary>Caller lacks permission.</summary>
-    Forbidden,
-    /// <summary>Input validation failed.</summary>
-    Validation,
-    /// <summary>Unexpected system failure.</summary>
-    SystemFailure
+    /// <summary>Gets the underlying case value.</summary>
+    public object? Value => value;
+
+    public UnionError(NotFound value) => this.value = value;
+
+    public UnionError(Conflict value) => this.value = value;
+
+    public UnionError(Unauthorized value) => this.value = value;
+
+    public UnionError(Forbidden value) => this.value = value;
+
+    public UnionError(Validation value) => this.value = value;
+
+    public UnionError(SystemFailure value) => this.value = value;
+
+    /// <summary>Returns <see langword="true"/> when the union is the default value.</summary>
+    public bool IsDefault => value is null;
+
+    /// <summary>Attempts to read the underlying case as <typeparamref name="TCase"/>.</summary>
+    public bool TryGet<TCase>([NotNullWhen(true)] out TCase? error)
+        where TCase : class
+    {
+        error = value as TCase;
+        return error is not null;
+    }
+
+    public static implicit operator UnionError(NotFound value) => new(value);
+
+    public static implicit operator UnionError(Conflict value) => new(value);
+
+    public static implicit operator UnionError(Unauthorized value) => new(value);
+
+    public static implicit operator UnionError(Forbidden value) => new(value);
+
+    public static implicit operator UnionError(Validation value) => new(value);
+
+    public static implicit operator UnionError(SystemFailure value) => new(value);
+
+    public bool Equals(UnionError other) => Equals(value, other.value);
+
+    public override bool Equals([NotNullWhen(true)] object? obj) =>
+        obj is UnionError other && Equals(other);
+
+    public override int GetHashCode() => value?.GetHashCode() ?? 0;
+
+    public override string ToString() => value?.ToString() ?? nameof(UnionError);
+
+    // ── Case types ──────────────────────────────────────────────────────────
+
+    /// <summary>The requested resource was not found.</summary>
+    /// <param name="Resource">Name or identifier of the missing resource.</param>
+    public sealed record NotFound(string Resource);
+
+    /// <summary>The operation conflicts with existing state (e.g., duplicate key).</summary>
+    /// <param name="Reason">Human-readable explanation of the conflict.</param>
+    public sealed record Conflict(string Reason);
+
+    /// <summary>The caller is not authenticated.</summary>
+    public sealed record Unauthorized();
+
+    /// <summary>The caller is authenticated but lacks permission for this operation.</summary>
+    /// <param name="Reason">Human-readable explanation of why access was denied.</param>
+    public sealed record Forbidden(string Reason);
+
+    /// <summary>One or more input fields failed validation.</summary>
+    /// <param name="Fields">Per-field error messages keyed by field name.</param>
+    public sealed record Validation(IReadOnlyDictionary<string, string[]> Fields);
+
+    /// <summary>An unexpected system-level failure occurred.</summary>
+    /// <param name="Ex">The originating exception.</param>
+    public sealed record SystemFailure(Exception Ex);
+
+    // ── Validation constructors (overloads on the Validation record) ──────────
+
+    /// <summary>Creates a <see cref="Validation"/> error from a field-errors dictionary.</summary>
+    public static UnionError CreateValidation(IDictionary<string, string[]> fields) =>
+        new Validation(new ReadOnlyDictionary<string, string[]>(
+            new Dictionary<string, string[]>(fields, StringComparer.Ordinal)));
+
+    /// <summary>
+    /// Creates a <see cref="Validation"/> error from field/message tuple pairs:
+    /// <code>UnionError.CreateValidation([("Email", ["Invalid"]), ("Name", ["Required"])])</code>
+    /// </summary>
+    public static UnionError CreateValidation(IEnumerable<(string Field, string[] Messages)> pairs) =>
+        new Validation(new ReadOnlyDictionary<string, string[]>(
+            pairs.ToDictionary(p => p.Field, p => p.Messages, StringComparer.Ordinal)));
 }
+#endif

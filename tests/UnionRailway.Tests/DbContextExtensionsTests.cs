@@ -22,6 +22,13 @@ public sealed class BlogContext(DbContextOptions<BlogContext> options)
 
 public sealed class DbContextExtensionsTests : IDisposable
 {
+    private static TError AssertError<T, TError>(Rail<T> result)
+        where TError : class
+    {
+        Assert.True(result.TryGetError(out var error));
+        return Assert.IsType<TError>(error.GetValueOrDefault().Value);
+    }
+
     private readonly BlogContext context;
 
     public DbContextExtensionsTests()
@@ -45,7 +52,7 @@ public sealed class DbContextExtensionsTests : IDisposable
         var result = await context.Posts
             .FirstOrDefaultAsUnionAsync("BlogPost", p => p.Id == 1);
 
-        Assert.Null(result.Error);
+        Assert.False(result.TryGetError(out _));
         Assert.Equal("Hello", result.Unwrap().Title);
     }
 
@@ -55,8 +62,7 @@ public sealed class DbContextExtensionsTests : IDisposable
         var result = await context.Posts
             .FirstOrDefaultAsUnionAsync("BlogPost", p => p.Id == 999);
 
-        Assert.NotNull(result.Error);
-        var nf = Assert.IsType<UnionError.NotFound>(result.Error);
+        var nf = AssertError<BlogPost, UnionError.NotFound>(result);
         Assert.Equal("BlogPost", nf.Resource);
     }
 
@@ -70,7 +76,7 @@ public sealed class DbContextExtensionsTests : IDisposable
 
         var result = await context.Posts.FirstOrDefaultAsUnionAsync("BlogPost");
 
-        Assert.Null(result.Error);
+        Assert.Equal("First", result.Unwrap().Title);
     }
 
     // ── SaveChangesAsUnionAsync ───────────────────────────────────────────────
@@ -82,7 +88,6 @@ public sealed class DbContextExtensionsTests : IDisposable
 
         var result = await context.SaveChangesAsUnionAsync();
 
-        Assert.Null(result.Error);
         Assert.Equal(1, result.Unwrap());
     }
 
@@ -91,7 +96,21 @@ public sealed class DbContextExtensionsTests : IDisposable
     {
         var result = await context.SaveChangesAsUnionAsync();
 
-        Assert.Null(result.Error);
-        Assert.Equal(0, result.Value);
+        Assert.Equal(0, result.Unwrap());
+    }
+
+    [Fact]
+    public async Task ToListAsUnionAsync_ReturnsMaterializedList()
+    {
+        context.Posts.AddRange(
+            new BlogPost { Id = 1, Title = "First" },
+            new BlogPost { Id = 2, Title = "Second" });
+        await context.SaveChangesAsync();
+
+        var result = await context.Posts.OrderBy(p => p.Id).ToListAsUnionAsync();
+
+        Assert.Collection(result.Unwrap(),
+            p => Assert.Equal("First", p.Title),
+            p => Assert.Equal("Second", p.Title));
     }
 }

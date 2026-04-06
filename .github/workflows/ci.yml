@@ -58,6 +58,8 @@ jobs:
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     needs: test
     runs-on: ubuntu-latest
+    env:
+      NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
 
     steps:
       - name: Checkout
@@ -125,14 +127,14 @@ jobs:
           path: artifacts/packages/*
 
       - name: Publish packages to NuGet.org
-        if: ${{ secrets.NUGET_API_KEY != '' }}
+        if: env.NUGET_API_KEY != ''
         shell: pwsh
         run: |
-          dotnet nuget push "artifacts/packages/*.nupkg" --api-key "${{ secrets.NUGET_API_KEY }}" --source "https://api.nuget.org/v3/index.json" --skip-duplicate
-          dotnet nuget push "artifacts/packages/*.snupkg" --api-key "${{ secrets.NUGET_API_KEY }}" --source "https://api.nuget.org/v3/index.json" --skip-duplicate
+          dotnet nuget push "artifacts/packages/*.nupkg" --api-key "$env:NUGET_API_KEY" --source "https://api.nuget.org/v3/index.json" --skip-duplicate
+          dotnet nuget push "artifacts/packages/*.snupkg" --api-key "$env:NUGET_API_KEY" --source "https://api.nuget.org/v3/index.json" --skip-duplicate
 
       - name: Warn when NuGet secret is missing
-        if: ${{ secrets.NUGET_API_KEY == '' }}
+        if: env.NUGET_API_KEY == ''
         shell: pwsh
         run: |
           Write-Warning 'NUGET_API_KEY secret is not configured. Packages were created and uploaded as artifacts, but not published to NuGet.org.'

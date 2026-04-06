@@ -236,6 +236,21 @@ var result = await http.GetFromJsonAsUnionAsync<UserDto>("/users/42", ct);
 
 ---
 
+## Release automation
+
+The repository includes a GitHub Actions workflow at `.github/workflows/ci.yml`.
+
+- pull requests to `main` run the test matrix for `net8.0`, `net9.0`, and `net11.0`
+- pushes to `main` create NuGet packages and publish CI prerelease versions
+- tag pushes like `v1.2.3` publish stable NuGet versions
+- manual runs can override the package version through `workflow_dispatch`
+
+To publish to NuGet.org, configure this repository secret:
+
+- `NUGET_API_KEY`
+
+---
+
 ## Packages
 
 ### `UnionRailway`

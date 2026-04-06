@@ -1,0 +1,138 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+    tags:
+      - v*
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Package version override (for example 0.1.0 or 0.1.0-rc.1)
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: true
+  CONFIGURATION: Release
+
+jobs:
+  test:
+    name: Test (${{ matrix.framework }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        framework:
+          - net8.0
+          - net9.0
+          - net11.0
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDKs
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            9.0.x
+            11.0.x
+
+      - name: Restore test project
+        run: dotnet restore tests/UnionRailway.Tests/UnionRailway.Tests.csproj -p:TargetFramework=${{ matrix.framework }}
+
+      - name: Run tests
+        run: dotnet test tests/UnionRailway.Tests/UnionRailway.Tests.csproj --configuration ${{ env.CONFIGURATION }} --no-restore --framework ${{ matrix.framework }}
+
+  pack-and-publish:
+    name: Pack and publish NuGet packages
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    needs: test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDKs
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            9.0.x
+            11.0.x
+
+      - name: Determine package version
+        id: version
+        shell: pwsh
+        run: |
+          $manualVersion = '${{ github.event.inputs.version }}'
+
+          if (-not [string]::IsNullOrWhiteSpace($manualVersion))
+          {
+              $packageVersion = $manualVersion
+          }
+          elseif ('${{ github.ref }}'.StartsWith('refs/tags/v'))
+          {
+              $packageVersion = '${{ github.ref_name }}'.Substring(1)
+          }
+          else
+          {
+              $packageVersion = "0.1.0-ci.${{ github.run_number }}"
+          }
+
+          "package_version=$packageVersion" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          Write-Host "Using package version $packageVersion"
+
+      - name: Pack NuGet packages
+        shell: pwsh
+        run: |
+          $projects = @(
+            'src/UnionRailway/UnionRailway.csproj'
+            'src/UnionRailway.AspNetCore/UnionRailway.AspNetCore.csproj'
+            'src/UnionRailway.HttpClient/UnionRailway.HttpClient.csproj'
+            'src/UnionRailway.EntityFrameworkCore/UnionRailway.EntityFrameworkCore.csproj'
+          )
+
+          foreach ($project in $projects)
+          {
+              dotnet pack $project `
+                --configuration $env:CONFIGURATION `
+                --output ./artifacts/packages `
+                --include-symbols `
+                -p:SymbolPackageFormat=snupkg `
+                -p:PackageVersion=${{ steps.version.outputs.package_version }}
+
+              if ($LASTEXITCODE -ne 0)
+              {
+                  exit $LASTEXITCODE
+              }
+          }
+
+      - name: Upload package artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuget-packages-${{ steps.version.outputs.package_version }}
+          path: artifacts/packages/*
+
+      - name: Publish packages to NuGet.org
+        if: ${{ secrets.NUGET_API_KEY != '' }}
+        shell: pwsh
+        run: |
+          dotnet nuget push "artifacts/packages/*.nupkg" --api-key "${{ secrets.NUGET_API_KEY }}" --source "https://api.nuget.org/v3/index.json" --skip-duplicate
+          dotnet nuget push "artifacts/packages/*.snupkg" --api-key "${{ secrets.NUGET_API_KEY }}" --source "https://api.nuget.org/v3/index.json" --skip-duplicate
+
+      - name: Warn when NuGet secret is missing
+        if: ${{ secrets.NUGET_API_KEY == '' }}
+        shell: pwsh
+        run: |
+          Write-Warning 'NUGET_API_KEY secret is not configured. Packages were created and uploaded as artifacts, but not published to NuGet.org.'

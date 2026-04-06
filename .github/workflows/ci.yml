@@ -13,7 +13,7 @@ on:
     inputs:
       version:
         description: Package version override (for example 0.1.0 or 0.1.0-rc.1)
-        required: false
+        required: true
         type: string
 
 permissions:
@@ -55,7 +55,7 @@ jobs:
 
   pack-and-publish:
     name: Pack and publish NuGet packages
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
     needs: test
     runs-on: ubuntu-latest
     env:
@@ -89,7 +89,7 @@ jobs:
           }
           else
           {
-              $packageVersion = "0.1.0-ci.${{ github.run_number }}"
+              throw 'A package version is required. Use workflow_dispatch with the version input, or push a tag like v1.2.3.'
           }
 
           "package_version=$packageVersion" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append

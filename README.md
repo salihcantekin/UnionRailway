@@ -241,9 +241,9 @@ var result = await http.GetFromJsonAsUnionAsync<UserDto>("/users/42", ct);
 The repository includes a GitHub Actions workflow at `.github/workflows/ci.yml`.
 
 - pull requests to `main` run the test matrix for `net8.0`, `net9.0`, and `net11.0`
-- pushes to `main` create NuGet packages and publish CI prerelease versions
+- pushes to `main` run validation only
 - tag pushes like `v1.2.3` publish stable NuGet versions
-- manual runs can override the package version through `workflow_dispatch`
+- manual runs require an explicit package version through `workflow_dispatch`
 
 To publish to NuGet.org, configure this repository secret:
 

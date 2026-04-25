@@ -10,7 +10,7 @@ public sealed class UnionWrapperTests
     [Fact]
     public async Task RunAsync_ActionReturnsValue_ReturnsOk()
     {
-        var (value, error) = await UnionWrapper.RunAsync(() => Task.FromResult("hello"));
+        (string? value, UnionError? error) = await UnionWrapper.RunAsync(() => Task.FromResult("hello"));
 
         Assert.Null(error);
         Assert.Equal("hello", value);
@@ -21,9 +21,9 @@ public sealed class UnionWrapperTests
     [Fact]
     public async Task RunAsync_ActionReturnsNull_ReturnsNotFound()
     {
-        var (_, error) = await UnionWrapper.RunNullableAsync(() => Task.FromResult<string?>(null));
+        (string _, UnionError? error) = await UnionWrapper.RunNullableAsync(() => Task.FromResult<string?>(null));
 
-        var notFound = Assert.IsType<UnionError.NotFound>(error.GetValueOrDefault().Value);
+        UnionError.NotFound notFound = Assert.IsType<UnionError.NotFound>(error.GetValueOrDefault().Value);
         Assert.Equal("Result", notFound.Resource);
     }
 
@@ -32,7 +32,7 @@ public sealed class UnionWrapperTests
     [Fact]
     public async Task RunAsync_ThrowsUnauthorizedAccessException_ReturnsUnauthorized()
     {
-        var (_, error) = await UnionWrapper.RunAsync<string>(
+        (string _, UnionError? error) = await UnionWrapper.RunAsync<string>(
             () => throw new UnauthorizedAccessException());
 
         Assert.IsType<UnionError.Unauthorized>(error.GetValueOrDefault().Value);
@@ -42,10 +42,10 @@ public sealed class UnionWrapperTests
     public async Task RunAsync_ThrowsKeyNotFoundException_ReturnsNotFound()
     {
         const string msg = "item-99";
-        var (_, error) = await UnionWrapper.RunAsync<string>(
+        (string _, UnionError? error) = await UnionWrapper.RunAsync<string>(
             () => throw new KeyNotFoundException(msg));
 
-        var notFound = Assert.IsType<UnionError.NotFound>(error.GetValueOrDefault().Value);
+        UnionError.NotFound notFound = Assert.IsType<UnionError.NotFound>(error.GetValueOrDefault().Value);
         Assert.Equal(msg, notFound.Resource);
     }
 
@@ -53,9 +53,9 @@ public sealed class UnionWrapperTests
     public async Task RunAsync_ThrowsGenericException_ReturnsSystemFailure()
     {
         var inner = new InvalidOperationException("boom");
-        var (_, error) = await UnionWrapper.RunAsync<string>(() => throw inner);
+        (string _, UnionError? error) = await UnionWrapper.RunAsync<string>(() => throw inner);
 
-        var failure = Assert.IsType<UnionError.SystemFailure>(error.GetValueOrDefault().Value);
+        UnionError.SystemFailure failure = Assert.IsType<UnionError.SystemFailure>(error.GetValueOrDefault().Value);
         Assert.Same(inner, failure.Ex);
     }
 

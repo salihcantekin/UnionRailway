@@ -26,7 +26,7 @@ sealed class FakePaymentHandler : System.Net.Http.HttpMessageHandler
         System.Net.Http.HttpRequestMessage req, CancellationToken ct)
     {
         // Inspect the card token from the serialised request body to pick the response
-        var body = req.Content is not null
+        string body = req.Content is not null
             ? await req.Content.ReadAsStringAsync(ct)
             : "";
 
@@ -50,16 +50,13 @@ sealed class FakePaymentHandler : System.Net.Http.HttpMessageHandler
             };
         }
 
-        if (body.Contains("card-stolen"))
-        {
-            return new(System.Net.HttpStatusCode.Forbidden)
+        return body.Contains("card-stolen")
+            ? new(System.Net.HttpStatusCode.Forbidden)
             {
                 Content = new System.Net.Http.StringContent(
                     """{"title":"Card Blocked","detail":"Card reported as lost/stolen","status":403}""",
                     System.Text.Encoding.UTF8, "application/problem+json")
-            };
-        }
-
-        return new(System.Net.HttpStatusCode.InternalServerError);
+            }
+            : new(System.Net.HttpStatusCode.InternalServerError);
     }
 }

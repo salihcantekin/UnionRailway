@@ -25,7 +25,7 @@ public sealed class DbContextExtensionsTests : IDisposable
     private static TError AssertError<T, TError>(Rail<T> result)
         where TError : class
     {
-        Assert.True(result.TryGetError(out var error));
+        Assert.True(result.TryGetError(out UnionError? error));
         return Assert.IsType<TError>(error.GetValueOrDefault().Value);
     }
 
@@ -33,7 +33,7 @@ public sealed class DbContextExtensionsTests : IDisposable
 
     public DbContextExtensionsTests()
     {
-        var options = new DbContextOptionsBuilder<BlogContext>()
+        DbContextOptions<BlogContext> options = new DbContextOptionsBuilder<BlogContext>()
             .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
             .Options;
         context = new BlogContext(options);
@@ -49,7 +49,7 @@ public sealed class DbContextExtensionsTests : IDisposable
         context.Posts.Add(new BlogPost { Id = 1, Title = "Hello" });
         await context.SaveChangesAsync();
 
-        var result = await context.Posts
+        Rail<BlogPost> result = await context.Posts
             .FirstOrDefaultAsUnionAsync("BlogPost", p => p.Id == 1);
 
         Assert.False(result.TryGetError(out _));
@@ -59,10 +59,10 @@ public sealed class DbContextExtensionsTests : IDisposable
     [Fact]
     public async Task FirstOrDefaultAsUnionAsync_EntityMissing_ReturnsNotFound()
     {
-        var result = await context.Posts
+        Rail<BlogPost> result = await context.Posts
             .FirstOrDefaultAsUnionAsync("BlogPost", p => p.Id == 999);
 
-        var nf = AssertError<BlogPost, UnionError.NotFound>(result);
+        UnionError.NotFound nf = AssertError<BlogPost, UnionError.NotFound>(result);
         Assert.Equal("BlogPost", nf.Resource);
     }
 
@@ -74,7 +74,7 @@ public sealed class DbContextExtensionsTests : IDisposable
             new BlogPost { Id = 2, Title = "Second" });
         await context.SaveChangesAsync();
 
-        var result = await context.Posts.FirstOrDefaultAsUnionAsync("BlogPost");
+        Rail<BlogPost> result = await context.Posts.FirstOrDefaultAsUnionAsync("BlogPost");
 
         Assert.Equal("First", result.Unwrap().Title);
     }
@@ -86,7 +86,7 @@ public sealed class DbContextExtensionsTests : IDisposable
     {
         context.Posts.Add(new BlogPost { Id = 10, Title = "New Post" });
 
-        var result = await context.SaveChangesAsUnionAsync();
+        Rail<int> result = await context.SaveChangesAsUnionAsync();
 
         Assert.Equal(1, result.Unwrap());
     }
@@ -94,7 +94,7 @@ public sealed class DbContextExtensionsTests : IDisposable
     [Fact]
     public async Task SaveChangesAsUnionAsync_NoChanges_ReturnsZero()
     {
-        var result = await context.SaveChangesAsUnionAsync();
+        Rail<int> result = await context.SaveChangesAsUnionAsync();
 
         Assert.Equal(0, result.Unwrap());
     }
@@ -107,7 +107,7 @@ public sealed class DbContextExtensionsTests : IDisposable
             new BlogPost { Id = 2, Title = "Second" });
         await context.SaveChangesAsync();
 
-        var result = await context.Posts.OrderBy(p => p.Id).ToListAsUnionAsync();
+        Rail<List<BlogPost>> result = await context.Posts.OrderBy(p => p.Id).ToListAsUnionAsync();
 
         Assert.Collection(result.Unwrap(),
             p => Assert.Equal("First", p.Title),

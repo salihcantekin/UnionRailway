@@ -10,7 +10,7 @@ public sealed class HttpClientExtensionsTests
     private static TError AssertError<T, TError>(Rail<T> result)
         where TError : class
     {
-        Assert.True(result.TryGetError(out var error));
+        Assert.True(result.TryGetError(out UnionError? error));
         return Assert.IsType<TError>(error.GetValueOrDefault().Value);
     }
 
@@ -53,9 +53,9 @@ public sealed class HttpClientExtensionsTests
     public async Task GetFromJsonAsUnionAsync_200_ReturnsOk()
     {
         var payload = JsonSerializer.Serialize(new { Name = "Alice", Age = 30 });
-        var client  = MakeClient(HttpStatusCode.OK, payload);
+        System.Net.Http.HttpClient client  = MakeClient(HttpStatusCode.OK, payload);
 
-        var result = await client.GetFromJsonAsUnionAsync<PersonDto>("/people/1");
+        Rail<PersonDto> result = await client.GetFromJsonAsUnionAsync<PersonDto>("/people/1");
 
         Assert.Equal("Alice", result.Unwrap().Name);
     }
@@ -64,9 +64,9 @@ public sealed class HttpClientExtensionsTests
     public async Task GetFromJsonAsUnionAsync_201_ReturnsOk()
     {
         var payload = JsonSerializer.Serialize(new { Name = "Bob", Age = 25 });
-        var client  = MakeClient(HttpStatusCode.Created, payload);
+        System.Net.Http.HttpClient client  = MakeClient(HttpStatusCode.Created, payload);
 
-        var result = await client.GetFromJsonAsUnionAsync<PersonDto>("/people");
+        Rail<PersonDto> result = await client.GetFromJsonAsUnionAsync<PersonDto>("/people");
 
         Assert.Equal("Bob", result.Unwrap().Name);
     }
@@ -81,11 +81,11 @@ public sealed class HttpClientExtensionsTests
             title  = "One or more validation errors occurred.",
             errors = new { Email = new[] { "Invalid format" }, Name = new[] { "Required" } }
         });
-        var client = MakeClient(HttpStatusCode.BadRequest, problemBody, "application/problem+json");
+        System.Net.Http.HttpClient client = MakeClient(HttpStatusCode.BadRequest, problemBody, "application/problem+json");
 
-        var result = await client.GetFromJsonAsUnionAsync<PersonDto>("/people");
+        Rail<PersonDto> result = await client.GetFromJsonAsUnionAsync<PersonDto>("/people");
 
-        var v = AssertError<PersonDto, UnionError.Validation>(result);
+        UnionError.Validation v = AssertError<PersonDto, UnionError.Validation>(result);
         Assert.Contains("Email", v.Fields.Keys);
         Assert.Contains("Name",  v.Fields.Keys);
     }
@@ -95,9 +95,9 @@ public sealed class HttpClientExtensionsTests
     [Fact]
     public async Task GetFromJsonAsUnionAsync_404_ReturnsNotFound()
     {
-        var client = MakeClient(HttpStatusCode.NotFound);
+        System.Net.Http.HttpClient client = MakeClient(HttpStatusCode.NotFound);
 
-        var result = await client.GetFromJsonAsUnionAsync<PersonDto>("/people/999");
+        Rail<PersonDto> result = await client.GetFromJsonAsUnionAsync<PersonDto>("/people/999");
 
         AssertError<PersonDto, UnionError.NotFound>(result);
     }
@@ -107,9 +107,9 @@ public sealed class HttpClientExtensionsTests
     [Fact]
     public async Task GetFromJsonAsUnionAsync_401_ReturnsUnauthorized()
     {
-        var client = MakeClient(HttpStatusCode.Unauthorized);
+        System.Net.Http.HttpClient client = MakeClient(HttpStatusCode.Unauthorized);
 
-        var result = await client.GetFromJsonAsUnionAsync<PersonDto>("/secure");
+        Rail<PersonDto> result = await client.GetFromJsonAsUnionAsync<PersonDto>("/secure");
 
         AssertError<PersonDto, UnionError.Unauthorized>(result);
     }
@@ -119,9 +119,9 @@ public sealed class HttpClientExtensionsTests
     [Fact]
     public async Task DeleteAsUnionAsync_200_ReturnsTrue()
     {
-        var client = MakeClient(HttpStatusCode.OK);
+        System.Net.Http.HttpClient client = MakeClient(HttpStatusCode.OK);
 
-        var result = await client.DeleteAsUnionAsync("/items/1");
+        Rail<Unit> result = await client.DeleteAsUnionAsync("/items/1");
 
         Assert.Equal(Unit.Value, result.Unwrap());
     }

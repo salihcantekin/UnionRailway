@@ -66,6 +66,7 @@ UnionRailway is not just a `Result<T>`-like wrapper.
 It includes dedicated integrations for:
 
 - `UnionRailway.AspNetCore`
+- `UnionRailway.AspNetCore.OpenApi`
 - `UnionRailway.HttpClient`
 - `UnionRailway.EntityFrameworkCore`
 
@@ -158,6 +159,15 @@ if (!result.IsSuccess(out var user, out var error))
 return Results.Ok(user);
 ```
 
+If a caller only wants to inspect whether a failure exists, `Rail<T>` also exposes a convenience `Error` property:
+
+```csharp
+if (result.Error is not null)
+    return result.Error.GetValueOrDefault().ToHttpResult();
+```
+
+`IsSuccess`, `IsError`, and `Match` remain the preferred APIs when you want to preserve the full union semantics explicitly.
+
 ### `Match`
 
 ```csharp
@@ -221,6 +231,42 @@ app.MapGet("/users/{id:int}", async (int id, UserService service) =>
 });
 ```
 
+This keeps runtime behavior and OpenAPI output aligned: the same library-level error taxonomy that drives `ToHttpResult()` also becomes visible to Swagger consumers.
+
+### ASP.NET Core OpenAPI
+
+Use `UnionRailway.AspNetCore.OpenApi` to advertise the standard `Rail<T>` response set in Minimal API metadata.
+
+Simple default convention:
+
+```csharp
+app.MapGet("/users/{id:int}", async (int id, UserService service) =>
+        await service.GetUserAsync(id).ToHttpResultAsync())
+    .WithRailOpenApi<RouteHandlerBuilder, UserDto>();
+```
+
+Created response convention:
+
+```csharp
+app.MapPost("/users", async (CreateUserRequest request, UserService service) =>
+        await service.CreateAsync(request).ToHttpResultAsync(createdUri: "/users/1"))
+    .WithCreatedRailOpenApi<RouteHandlerBuilder, UserDto>();
+```
+
+Second version with customization:
+
+```csharp
+app.MapGet("/orders/{id:int}", async (int id, OrderService service) =>
+        await service.GetOrderAsync(id).ToHttpResultAsync())
+    .WithRailOpenApi<RouteHandlerBuilder, OrderDto>(options =>
+    {
+        options.SuccessStatusCode = StatusCodes.Status202Accepted;
+        options.IncludeUnauthorized = false;
+        options.IncludeForbidden = false;
+        options.IncludeSystemFailure = false;
+    });
+```
+
 ### Entity Framework Core
 
 ```csharp
@@ -258,6 +304,11 @@ Core result type, error type, helpers, and legacy migration wrappers.
 
 ### `UnionRailway.AspNetCore`
 `Rail<T>` / `UnionError` to `IResult` conversion with RFC 7807 mapping.
+
+### `UnionRailway.AspNetCore.OpenApi`
+OpenAPI metadata conventions for Minimal API endpoints returning `Rail<T>`, with both default and customizable response sets.
+
+Install it when you want Swagger / OpenAPI documents to describe the same success and error responses your `Rail<T>` endpoints actually produce.
 
 ### `UnionRailway.HttpClient`
 HTTP and problem-details responses to `Rail<T>` conversion.

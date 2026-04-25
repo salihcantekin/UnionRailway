@@ -1,5 +1,6 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/UnionRailway.AspNetCore.OpenApi/UnionRailway.AspNetCore.OpenApi.csproj" />
     <Project Path="src/UnionRailway.AspNetCore/UnionRailway.AspNetCore.csproj" />
     <Project Path="src/UnionRailway.EntityFrameworkCore/UnionRailway.EntityFrameworkCore.csproj" />
     <Project Path="src/UnionRailway.HttpClient/UnionRailway.HttpClient.csproj" />

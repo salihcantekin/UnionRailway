@@ -11,7 +11,7 @@ public sealed class UnionErrorTests
     {
         var error = new UnionError.NotFound("User");
 
-        var nf = Assert.IsType<UnionError.NotFound>(error);
+        UnionError.NotFound nf = Assert.IsType<UnionError.NotFound>(error);
         Assert.Equal("User", nf.Resource);
     }
 
@@ -20,7 +20,7 @@ public sealed class UnionErrorTests
     {
         var error = new UnionError.Conflict("Duplicate email");
 
-        var c = Assert.IsType<UnionError.Conflict>(error);
+        UnionError.Conflict c = Assert.IsType<UnionError.Conflict>(error);
         Assert.Equal("Duplicate email", c.Reason);
     }
 
@@ -37,7 +37,7 @@ public sealed class UnionErrorTests
     {
         var error = new UnionError.Forbidden("Admin only");
 
-        var f = Assert.IsType<UnionError.Forbidden>(error);
+        UnionError.Forbidden f = Assert.IsType<UnionError.Forbidden>(error);
         Assert.Equal("Admin only", f.Reason);
     }
 
@@ -51,7 +51,7 @@ public sealed class UnionErrorTests
         };
         var error = new UnionError.Validation(fields);
 
-        var v = Assert.IsType<UnionError.Validation>(error);
+        UnionError.Validation v = Assert.IsType<UnionError.Validation>(error);
         Assert.Contains("Email", v.Fields.Keys);
         Assert.Contains("Name",  v.Fields.Keys);
     }
@@ -65,7 +65,7 @@ public sealed class UnionErrorTests
             ("Name",  ["Required"])
         ]);
 
-        var v = Assert.IsType<UnionError.Validation>(error.Value);
+        UnionError.Validation v = Assert.IsType<UnionError.Validation>(error.Value);
         Assert.Contains("Email", v.Fields.Keys);
         Assert.Contains("Name",  v.Fields.Keys);
     }
@@ -76,7 +76,7 @@ public sealed class UnionErrorTests
         var ex    = new InvalidOperationException("boom");
         var error = new UnionError.SystemFailure(ex);
 
-        var sf = Assert.IsType<UnionError.SystemFailure>(error);
+        UnionError.SystemFailure sf = Assert.IsType<UnionError.SystemFailure>(error);
         Assert.Same(ex, sf.Ex);
     }
 

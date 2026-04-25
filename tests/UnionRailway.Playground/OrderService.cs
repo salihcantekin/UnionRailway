@@ -17,31 +17,47 @@ sealed class OrderService(AppDbContext db, ProductService products, PaymentGatew
         // ── Step 1: validate the request fields ───────────────────────────────
         var errs = new List<(string, string[])>();
         if (req.Quantity <= 0)
+        {
             errs.Add(("Quantity",  ["Quantity must be at least 1"]));
+        }
+
         if (req.Quantity > 100)
+        {
             errs.Add(("Quantity",  ["Cannot order more than 100 items at once"]));
+        }
+
         if (string.IsNullOrWhiteSpace(cardToken))
+        {
             errs.Add(("CardToken", ["Payment card token is required"]));
+        }
 
         if (errs.Count > 0)
+        {
             return Union.Fail<Order>(UnionError.CreateValidation(errs));
+        }
 
         // ── Step 2: look up the product ───────────────────────────────────────
         // Propagates NotFound automatically if the product doesn't exist.
-        var (product, productErr) = await products.GetByIdAsync(req.ProductId, ct);
-        if (productErr is not null) return Union.Fail<Order>(productErr.GetValueOrDefault());
+        (Product? product, UnionError? productErr) = await products.GetByIdAsync(req.ProductId, ct);
+        if (productErr is not null)
+        {
+            return Union.Fail<Order>(productErr.GetValueOrDefault());
+        }
 
         // ── Step 3: reserve stock ─────────────────────────────────────────────
         // Propagates Conflict if the requested quantity exceeds available stock.
-        var (_, stockErr) = await products.DeductStockAsync(req.ProductId, req.Quantity, ct);
-        if (stockErr is not null) return Union.Fail<Order>(stockErr.GetValueOrDefault());
+        (Unit _, UnionError? stockErr) = await products.DeductStockAsync(req.ProductId, req.Quantity, ct);
+        if (stockErr is not null)
+        {
+            return Union.Fail<Order>(stockErr.GetValueOrDefault());
+        }
 
-        var total = product!.Price * req.Quantity;
+        decimal total = product!.Price * req.Quantity;
 
         // ── Step 4: charge the card ───────────────────────────────────────────
         // Propagates Conflict (declined), Forbidden (blocked), etc. directly
         // from the payment gateway — no manual status-code inspection needed.
-        var (payment, paymentErr) = await payments.ChargeAsync(
+        (PaymentResponse? payment, UnionError? paymentErr) = await payments.ChargeAsync(
             new PaymentRequest(0, total, cardToken), ct);
 
         if (paymentErr is not null)
@@ -66,7 +82,7 @@ sealed class OrderService(AppDbContext db, ProductService products, PaymentGatew
 
         db.Orders.Add(order);
 
-        var (_, saveErr) = await db.SaveChangesAsUnionAsync(ct);
+        (int _, UnionError? saveErr) = await db.SaveChangesAsUnionAsync(ct);
         return saveErr is not null
             ? Union.Fail<Order>(saveErr.GetValueOrDefault())
             : Union.Ok(order);

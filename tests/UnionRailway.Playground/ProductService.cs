@@ -35,24 +35,44 @@ sealed class ProductService(AppDbContext db)
     {
         // Input validation — caught before any DB round-trip
         var errs = new List<(string Field, string[] Messages)>();
-        if (string.IsNullOrWhiteSpace(name))  errs.Add(("Name",  ["Name is required"]));
-        if (string.IsNullOrWhiteSpace(sku))   errs.Add(("Sku",   ["SKU is required"]));
-        if (price <= 0)                        errs.Add(("Price", [$"Price must be positive (got {price})"]));
-        if (stock < 0)                         errs.Add(("Stock", ["Stock cannot be negative"]));
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            errs.Add(("Name",  ["Name is required"]));
+        }
+
+        if (string.IsNullOrWhiteSpace(sku))
+        {
+            errs.Add(("Sku",   ["SKU is required"]));
+        }
+
+        if (price <= 0)
+        {
+            errs.Add(("Price", [$"Price must be positive (got {price})"]));
+        }
+
+        if (stock < 0)
+        {
+            errs.Add(("Stock", ["Stock cannot be negative"]));
+        }
 
         if (errs.Count > 0)
+        {
             return Union.Fail<Product>(UnionError.CreateValidation(errs));
+        }
 
         // Guard against duplicate SKUs
-        var duplicate = await db.Products.AnyAsync(p => p.Sku == sku, ct);
+        bool duplicate = await db.Products.AnyAsync(p => p.Sku == sku, ct);
         if (duplicate)
+        {
             return Union.Fail<Product>(
                 new UnionError.Conflict($"A product with SKU '{sku}' already exists"));
+        }
 
         var product = new Product { Name = name, Sku = sku, Price = price, StockQty = stock };
         db.Products.Add(product);
 
-        var (_, saveErr) = await db.SaveChangesAsUnionAsync(ct);
+        (int _, UnionError? saveErr) = await db.SaveChangesAsUnionAsync(ct);
+
         return saveErr is not null
             ? Union.Fail<Product>(saveErr.GetValueOrDefault())
             : Union.Ok(product);
@@ -66,12 +86,17 @@ sealed class ProductService(AppDbContext db)
         int productId, int qty, CancellationToken ct = default)
     {
         var (product, err) = await GetByIdAsync(productId, ct);
-        if (err is not null) return Union.Fail<Unit>(err.GetValueOrDefault());
+        if (err is not null)
+        {
+            return Union.Fail<Unit>(err.GetValueOrDefault());
+        }
 
         if (product!.StockQty < qty)
+        {
             return Union.Fail<Unit>(new UnionError.Conflict(
                 $"Insufficient stock for '{product.Name}': " +
                 $"requested {qty}, available {product.StockQty}"));
+        }
 
         product.StockQty -= qty;
 

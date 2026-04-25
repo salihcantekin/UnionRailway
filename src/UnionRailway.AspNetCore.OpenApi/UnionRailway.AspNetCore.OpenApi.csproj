@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+	<FrameworkReference Include="Microsoft.AspNetCore.App" />
+	<ProjectReference Include="..\UnionRailway.AspNetCore\UnionRailway.AspNetCore.csproj" />
+	<None Include="..\..\README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <PropertyGroup>
+	<TargetFrameworks>net8.0;net9.0;net11.0</TargetFrameworks>
+	<RestoreTargetFrameworks>$(TargetFrameworks)</RestoreTargetFrameworks>
+	<ImplicitUsings>enable</ImplicitUsings>
+	<LangVersion>preview</LangVersion>
+	<IsPackable>true</IsPackable>
+	<PackageId>UnionRailway.AspNetCore.OpenApi</PackageId>
+	<Title>UnionRailway.AspNetCore.OpenApi</Title>
+	<Description>OpenAPI and Minimal API metadata conventions for UnionRailway Rail&lt;T&gt; endpoints.</Description>
+	<Authors>Salih Cantekin</Authors>
+	<PackageTags>railway-oriented-programming;rop;union;aspnetcore;minimal-api;openapi;swagger</PackageTags>
+	<PackageReadmeFile>README.md</PackageReadmeFile>
+	<PackageLicenseExpression>MIT</PackageLicenseExpression>
+	<PackageProjectUrl>https://github.com/salihcantekin/UnionRailway</PackageProjectUrl>
+	<RepositoryUrl>https://github.com/salihcantekin/UnionRailway</RepositoryUrl>
+	<RepositoryType>git</RepositoryType>
+	<PublishRepositoryUrl>true</PublishRepositoryUrl>
+  </PropertyGroup>
+
+</Project>

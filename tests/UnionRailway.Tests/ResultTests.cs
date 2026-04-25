@@ -11,7 +11,7 @@ public sealed class UnionTests
     private static TError AssertError<T, TError>(Rail<T> result)
         where TError : class
     {
-        Assert.True(result.TryGetError(out var error));
+        Assert.True(result.TryGetError(out UnionError? error));
         return Assert.IsType<TError>(error.GetValueOrDefault().Value);
     }
 
@@ -20,7 +20,7 @@ public sealed class UnionTests
     [Fact]
     public void Ok_ErrorIsNull()
     {
-        var result = Union.Ok(42);
+        Rail<int> result = Union.Ok(42);
 
         Assert.False(result.TryGetError(out _));
         Assert.Equal(42, result.Unwrap());
@@ -29,9 +29,27 @@ public sealed class UnionTests
     [Fact]
     public void Fail_ErrorIsSet()
     {
-        var result = Union.Fail<int>(new UnionError.Unauthorized());
+        Rail<int> result = Union.Fail<int>(new UnionError.Unauthorized());
 
+        Assert.NotNull(result.Error);
         AssertError<int, UnionError.Unauthorized>(result);
+    }
+
+    [Fact]
+    public void Error_WhenOk_ReturnsNull()
+    {
+        Rail<int> result = Union.Ok(42);
+
+        Assert.Null(result.Error);
+    }
+
+    [Fact]
+    public void Error_WhenFailed_ReturnsWrappedError()
+    {
+        Rail<int> result = Union.Fail<int>(new UnionError.Conflict("dupe"));
+
+        Assert.NotNull(result.Error);
+        Assert.IsType<UnionError.Conflict>(result.Error.GetValueOrDefault().Value);
     }
 
     // ── Deconstruction ────────────────────────────────────────────────
@@ -40,7 +58,7 @@ public sealed class UnionTests
     public void Deconstruct_SuccessPath_ErrorIsNull()
     {
         Rail<string> result = Union.Ok("hello");
-        var (value, error) = result;
+        (string? value, UnionError? error) = result;
 
         Assert.Null(error);
         Assert.Equal("hello", value);
@@ -50,7 +68,7 @@ public sealed class UnionTests
     public void Deconstruct_ErrorPath_ErrorIsSet()
     {
         Rail<string> result = Union.Fail<string>(new UnionError.NotFound("file"));
-        var (_, error) = result;
+        (string _, UnionError? error) = result;
 
         Assert.NotNull(error);
         Assert.IsType<UnionError.NotFound>(error.GetValueOrDefault().Value);
@@ -61,9 +79,9 @@ public sealed class UnionTests
     [Fact]
     public void IsSuccess_WhenOk_ReturnsTrueAndSetsData()
     {
-        var result = Union.Ok("world");
+        Rail<string> result = Union.Ok("world");
 
-        Assert.True(result.IsSuccess(out var data, out var error));
+        Assert.True(result.IsSuccess(out var data, out UnionError? error));
         Assert.Equal("world", data);
         Assert.Null(error);
     }
@@ -71,9 +89,9 @@ public sealed class UnionTests
     [Fact]
     public void IsSuccess_WhenError_ReturnsFalseAndSetsError()
     {
-        var result = Union.Fail<string>(new UnionError.NotFound("Thing"));
+        Rail<string> result = Union.Fail<string>(new UnionError.NotFound("Thing"));
 
-        Assert.False(result.IsSuccess(out var data, out var error));
+        Assert.False(result.IsSuccess(out var data, out UnionError? error));
         Assert.NotNull(error);
         Assert.IsType<UnionError.NotFound>(error.GetValueOrDefault().Value);
     }
@@ -83,7 +101,7 @@ public sealed class UnionTests
     [Fact]
     public void Unwrap_WhenOk_ReturnsValue()
     {
-        var result = Union.Ok(99);
+        Rail<int> result = Union.Ok(99);
 
         Assert.Equal(99, result.Unwrap());
     }
@@ -91,9 +109,9 @@ public sealed class UnionTests
     [Fact]
     public void Unwrap_WhenError_ThrowsUnwrapException()
     {
-        var result = Union.Fail<int>(new UnionError.Unauthorized());
+        Rail<int> result = Union.Fail<int>(new UnionError.Unauthorized());
 
-        var ex = Assert.Throws<UnwrapException>(() => result.Unwrap());
+        UnwrapException ex = Assert.Throws<UnwrapException>(() => result.Unwrap());
         Assert.NotNull(ex.Error);
         Assert.IsType<UnionError.Unauthorized>(ex.Error.GetValueOrDefault().Value);
     }
@@ -103,7 +121,7 @@ public sealed class UnionTests
     [Fact]
     public void UnwrapOrDefault_WhenOk_ReturnsValue()
     {
-        var result = Union.Ok(5);
+        Rail<int> result = Union.Ok(5);
 
         Assert.Equal(5, result.UnwrapOrDefault(-1));
     }
@@ -111,7 +129,7 @@ public sealed class UnionTests
     [Fact]
     public void UnwrapOrDefault_WhenError_ReturnsDefault()
     {
-        var result = Union.Fail<int>(new UnionError.Conflict("dupe"));
+        Rail<int> result = Union.Fail<int>(new UnionError.Conflict("dupe"));
 
         Assert.Equal(-1, result.UnwrapOrDefault(-1));
     }
@@ -121,7 +139,7 @@ public sealed class UnionTests
     [Fact]
     public void Match_WhenOk_InvokesOnOk()
     {
-        var result = Union.Ok("hello");
+        Rail<string> result = Union.Ok("hello");
 
         var output = result.Match(
             onOk:    v   => $"Got: {v}",
@@ -133,7 +151,7 @@ public sealed class UnionTests
     [Fact]
     public void Match_WhenError_InvokesOnError()
     {
-        var result = Union.Fail<string>(new UnionError.Forbidden("no role"));
+        Rail<string> result = Union.Fail<string>(new UnionError.Forbidden("no role"));
 
         var output = result.Match(
             onOk:    _ => "ok",
@@ -149,7 +167,7 @@ public sealed class UnionTests
     [Fact]
     public void Match_NullOnOk_ThrowsArgumentNullException()
     {
-        var result = Union.Ok(1);
+        Rail<int> result = Union.Ok(1);
         Assert.Throws<ArgumentNullException>(() =>
             result.Match(onOk: (Func<int, string>)null!, onError: _ => ""));
     }
@@ -157,7 +175,7 @@ public sealed class UnionTests
     [Fact]
     public void Match_NullOnError_ThrowsArgumentNullException()
     {
-        var result = Union.Ok(1);
+        Rail<int> result = Union.Ok(1);
         Assert.Throws<ArgumentNullException>(() =>
             result.Match(onOk: i => i.ToString(), onError: (Func<UnionError, string>)null!));
     }
@@ -167,12 +185,12 @@ public sealed class UnionTests
     [Fact]
     public void Combine_TwoOks_ReturnsTuplePair()
     {
-        var r1 = Union.Ok("Alice");
-        var r2 = Union.Ok(30);
+        Rail<string> r1 = Union.Ok("Alice");
+        Rail<int> r2 = Union.Ok(30);
 
-        var combined = Union.Combine(r1, r2);
+        Rail<(string First, int Second)> combined = Union.Combine(r1, r2);
 
-        var (name, age) = combined.Unwrap();
+        (string? name, int age) = combined.Unwrap();
         Assert.Equal("Alice", name);
         Assert.Equal(30, age);
     }
@@ -180,10 +198,10 @@ public sealed class UnionTests
     [Fact]
     public void Combine_FirstIsError_ReturnsFirstError()
     {
-        var r1 = Union.Fail<string>(UnionError.CreateValidation([("Name", ["Required"])]));
-        var r2 = Union.Ok(30);
+        Rail<string> r1 = Union.Fail<string>(UnionError.CreateValidation([("Name", ["Required"])]));
+        Rail<int> r2 = Union.Ok(30);
 
-        var combined = Union.Combine(r1, r2);
+        Rail<(string First, int Second)> combined = Union.Combine(r1, r2);
 
         AssertError<(string First, int Second), UnionError.Validation>(combined);
     }
@@ -191,10 +209,10 @@ public sealed class UnionTests
     [Fact]
     public void Combine_SecondIsError_ReturnsSecondError()
     {
-        var r1 = Union.Ok("Alice");
-        var r2 = Union.Fail<int>(new UnionError.Conflict("dupe"));
+        Rail<string> r1 = Union.Ok("Alice");
+        Rail<int> r2 = Union.Fail<int>(new UnionError.Conflict("dupe"));
 
-        var combined = Union.Combine(r1, r2);
+        Rail<(string First, int Second)> combined = Union.Combine(r1, r2);
 
         AssertError<(string First, int Second), UnionError.Conflict>(combined);
     }
@@ -202,7 +220,7 @@ public sealed class UnionTests
     [Fact]
     public void Map_WhenOk_TransformsValue()
     {
-        var result = Union.Ok(5).Map(x => x * 2);
+        Rail<int> result = Union.Ok(5).Map(x => x * 2);
 
         Assert.Equal(10, result.Unwrap());
     }
@@ -210,7 +228,7 @@ public sealed class UnionTests
     [Fact]
     public void Bind_WhenError_PropagatesError()
     {
-        var result = Union.Fail<int>(new UnionError.Conflict("dupe"))
+        Rail<int> result = Union.Fail<int>(new UnionError.Conflict("dupe"))
             .Bind(x => Union.Ok(x * 2));
 
         AssertError<int, UnionError.Conflict>(result);

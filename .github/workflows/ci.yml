@@ -101,6 +101,7 @@ jobs:
           $projects = @(
             'src/UnionRailway/UnionRailway.csproj'
             'src/UnionRailway.AspNetCore/UnionRailway.AspNetCore.csproj'
+            'src/UnionRailway.AspNetCore.OpenApi/UnionRailway.AspNetCore.OpenApi.csproj'
             'src/UnionRailway.HttpClient/UnionRailway.HttpClient.csproj'
             'src/UnionRailway.EntityFrameworkCore/UnionRailway.EntityFrameworkCore.csproj'
           )

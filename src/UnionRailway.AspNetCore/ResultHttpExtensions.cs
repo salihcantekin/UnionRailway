@@ -41,9 +41,11 @@ public static class ResultHttpExtensions
         string? createdUri = null)
     {
         if (result.TryGetError(out var error))
+        {
             return error.GetValueOrDefault().ToHttpResult();
+        }
 
-        var value = result.Unwrap();
+        T? value = result.Unwrap();
         return createdUri is not null
             ? Results.Created(createdUri, value)
             : Results.Ok(value);

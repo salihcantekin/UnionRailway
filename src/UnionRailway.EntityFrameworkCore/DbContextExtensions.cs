@@ -31,8 +31,8 @@ public static class DbContextExtensions
     {
         try
         {
-            var filtered = predicate is not null ? query.Where(predicate) : query;
-            var entity = await filtered.FirstOrDefaultAsync(cancellationToken);
+            IQueryable<TEntity> filtered = predicate is not null ? query.Where(predicate) : query;
+            TEntity? entity = await filtered.FirstOrDefaultAsync(cancellationToken);
 
             return entity is not null
                 ? entity
@@ -119,12 +119,14 @@ public static class DbContextExtensions
 
     private static bool IsUniqueConstraintViolation(DbUpdateException exception)
     {
-        var inner = exception.InnerException;
-        
-        if (inner is null)
-            return false;
+        Exception? inner = exception.InnerException;
 
-        var message = inner.Message;
+        if (inner is null)
+        {
+            return false;
+        }
+
+        string message = inner.Message;
 
         return message.Contains("unique", StringComparison.OrdinalIgnoreCase)
             || message.Contains("duplicate", StringComparison.OrdinalIgnoreCase)

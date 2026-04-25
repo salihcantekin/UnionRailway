@@ -10,7 +10,7 @@ public sealed class RailAsyncExtensionsTests
     private static TError AssertError<T, TError>(Rail<T> result)
         where TError : class
     {
-        Assert.True(result.TryGetError(out var error));
+        Assert.True(result.TryGetError(out UnionError? error));
         return Assert.IsType<TError>(error.GetValueOrDefault().Value);
     }
 
@@ -19,7 +19,7 @@ public sealed class RailAsyncExtensionsTests
     {
         Task<Rail<int>> resultTask = Task.FromResult(Union.Ok(21));
 
-        var result = await resultTask.MapAsync(x => x * 2);
+        Rail<int> result = await resultTask.MapAsync(x => x * 2);
 
         Assert.Equal(42, result.Unwrap());
     }
@@ -29,7 +29,7 @@ public sealed class RailAsyncExtensionsTests
     {
         Task<Rail<int>> resultTask = Task.FromResult(Union.Ok(10));
 
-        var result = await resultTask.BindAsync(x => Task.FromResult<Rail<string>>(Union.Ok($"value={x}")));
+        Rail<string> result = await resultTask.BindAsync(x => Task.FromResult<Rail<string>>(Union.Ok($"value={x}")));
 
         Assert.Equal("value=10", result.Unwrap());
     }
@@ -39,7 +39,7 @@ public sealed class RailAsyncExtensionsTests
     {
         Task<Rail<int>> resultTask = Task.FromResult(Union.Fail<int>(new UnionError.Conflict("dupe")));
 
-        var result = await resultTask.BindAsync(x => Task.FromResult<Rail<string>>(Union.Ok($"value={x}")));
+        Rail<string> result = await resultTask.BindAsync(x => Task.FromResult<Rail<string>>(Union.Ok($"value={x}")));
 
         AssertError<string, UnionError.Conflict>(result);
     }
@@ -62,7 +62,7 @@ public sealed class RailAsyncExtensionsTests
         ValueTask<Rail<string>> resultTask = ValueTask.FromResult<Rail<string>>(Union.Ok("hello"));
         var called = false;
 
-        var result = await resultTask.TapAsync(value =>
+        Rail<string> result = await resultTask.TapAsync(value =>
         {
             called = value == "hello";
             return ValueTask.CompletedTask;
@@ -87,8 +87,8 @@ public sealed class RailAsyncExtensionsTests
     {
         Task<Rail<object>> resultTask = Task.FromResult<Rail<object>>(Union.Ok(new { Name = "Alice" }));
 
-        var httpResult = await resultTask.ToHttpResultAsync();
-        var statusResult = Assert.IsAssignableFrom<IStatusCodeHttpResult>(httpResult);
+        IResult httpResult = await resultTask.ToHttpResultAsync();
+        IStatusCodeHttpResult statusResult = Assert.IsAssignableFrom<IStatusCodeHttpResult>(httpResult);
         Assert.Equal(StatusCodes.Status200OK, statusResult.StatusCode);
     }
 
@@ -97,8 +97,8 @@ public sealed class RailAsyncExtensionsTests
     {
         ValueTask<Rail<string>> resultTask = ValueTask.FromResult<Rail<string>>(Union.Fail<string>(new UnionError.NotFound("User")));
 
-        var httpResult = await resultTask.ToHttpResultAsync();
-        var statusResult = Assert.IsAssignableFrom<IStatusCodeHttpResult>(httpResult);
+        IResult httpResult = await resultTask.ToHttpResultAsync();
+        IStatusCodeHttpResult statusResult = Assert.IsAssignableFrom<IStatusCodeHttpResult>(httpResult);
         Assert.Equal(StatusCodes.Status404NotFound, statusResult.StatusCode);
     }
 }

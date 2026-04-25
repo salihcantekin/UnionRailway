@@ -45,7 +45,7 @@ public static class HttpClientExtensions
         CancellationToken cancellationToken = default)
         where T : class
     {
-        var content = body is not null
+        JsonContent? content = body is not null
             ? JsonContent.Create(body, options: defaultJsonOptions)
             : null;
 
@@ -65,7 +65,7 @@ public static class HttpClientExtensions
         CancellationToken cancellationToken = default)
         where T : class
     {
-        var content = body is not null
+        JsonContent? content = body is not null
             ? JsonContent.Create(body, options: defaultJsonOptions)
             : null;
 
@@ -83,12 +83,9 @@ public static class HttpClientExtensions
         try
         {
             using var request = new HttpRequestMessage(HttpMethod.Delete, requestUri);
-            using var response = await client.SendAsync(request, cancellationToken);
+            using HttpResponseMessage response = await client.SendAsync(request, cancellationToken);
 
-            if (response.IsSuccessStatusCode)
-                return Unit.Value;
-
-            return await CreateError<Unit>(response, requestUri, cancellationToken);
+            return response.IsSuccessStatusCode ? Unit.Value : await CreateError<Unit>(response, requestUri, cancellationToken);
         }
         catch (OperationCanceledException)
         {
@@ -127,7 +124,7 @@ public static class HttpClientExtensions
         try
         {
             using var request = new HttpRequestMessage(method, requestUri) { Content = content };
-            using var response = await client.SendAsync(request, cancellationToken);
+            using HttpResponseMessage response = await client.SendAsync(request, cancellationToken);
 
             return response.StatusCode switch
             {
@@ -160,7 +157,7 @@ public static class HttpClientExtensions
     {
         try
         {
-            var value = await response.Content.ReadFromJsonAsync<T>(
+            T? value = await response.Content.ReadFromJsonAsync<T>(
                 defaultJsonOptions, cancellationToken);
 
             return value is not null
@@ -181,16 +178,13 @@ public static class HttpClientExtensions
     {
         try
         {
-            var body = await response.Content
+            ProblemDetailsDocument? body = await response.Content
                 .ReadFromJsonAsync<ProblemDetailsDocument>(defaultJsonOptions, cancellationToken);
 
-            if (body?.Errors is { Count: > 0 })
-            {
-                return Union.Fail<T>(new UnionError.Validation(
-                    body.Errors.ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.Ordinal)));
-            }
-
-            return Union.Fail<T>(new UnionError.Validation(
+            return body?.Errors is { Count: > 0 }
+                ? Union.Fail<T>(new UnionError.Validation(
+                    body.Errors.ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.Ordinal)))
+                : Union.Fail<T>(new UnionError.Validation(
                 new Dictionary<string, string[]> { [""] = [body?.Title ?? "The request is invalid."] }));
         }
         catch
@@ -208,15 +202,10 @@ public static class HttpClientExtensions
         return response.StatusCode switch
         {
             HttpStatusCode.Unauthorized => Union.Fail<T>(new UnionError.Unauthorized()),
-            HttpStatusCode.Forbidden => Union.Fail<T>(new UnionError.Forbidden(
-                await TryReadReasonAsync(response, cancellationToken))),
-            HttpStatusCode.NotFound => Union.Fail<T>(new UnionError.NotFound(
-                await TryReadReasonAsync(response, cancellationToken))),
-            HttpStatusCode.Conflict => Union.Fail<T>(new UnionError.Conflict(
-                await TryReadReasonAsync(response, cancellationToken))),
-            _ => Union.Fail<T>(new UnionError.SystemFailure(
-                new HttpRequestException(
-                    $"Unexpected HTTP status {(int)response.StatusCode} from {requestUri}.")))
+            HttpStatusCode.Forbidden => Union.Fail<T>(new UnionError.Forbidden(await TryReadReasonAsync(response, cancellationToken))),
+            HttpStatusCode.NotFound => Union.Fail<T>(new UnionError.NotFound(await TryReadReasonAsync(response, cancellationToken))),
+            HttpStatusCode.Conflict => Union.Fail<T>(new UnionError.Conflict(await TryReadReasonAsync(response, cancellationToken))),
+            _ => Union.Fail<T>(new UnionError.SystemFailure(new HttpRequestException($"Unexpected HTTP status {(int)response.StatusCode} from {requestUri}.")))
         };
     }
 
@@ -226,8 +215,9 @@ public static class HttpClientExtensions
     {
         try
         {
-            var body = await response.Content
+            ProblemDetailsDocument? body = await response.Content
                 .ReadFromJsonAsync<ProblemDetailsDocument>(defaultJsonOptions, cancellationToken);
+
             return body?.Detail ?? body?.Title ?? response.ReasonPhrase ?? string.Empty;
         }
         catch

@@ -3,6 +3,7 @@
   <ItemGroup>
     <ProjectReference Include="..\UnionRailway\UnionRailway.csproj" />
     <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+    <None Include="..\..\assets\icon.png" Pack="true" PackagePath="\" />
   </ItemGroup>
 
   <ItemGroup>
@@ -10,8 +11,7 @@
   </ItemGroup>
 
   <PropertyGroup>
-    <TargetFrameworks>net8.0;net9.0;net11.0</TargetFrameworks>
-    <RestoreTargetFrameworks>$(TargetFrameworks)</RestoreTargetFrameworks>
+    <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>preview</LangVersion>
     <Nullable>enable</Nullable>
@@ -22,6 +22,7 @@
     <Authors>Salih Cantekin</Authors>
     <PackageTags>railway-oriented-programming;rop;union;efcore;entity-framework;database</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>icon.png</PackageIcon>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/salihcantekin/UnionRailway</PackageProjectUrl>
     <RepositoryUrl>https://github.com/salihcantekin/UnionRailway</RepositoryUrl>

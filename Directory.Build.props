@@ -8,8 +8,8 @@
     <Company>UnionRailway</Company>
     <Product>UnionRailway</Product>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageProjectUrl>https://github.com/yourorg/UnionRailway</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/yourorg/UnionRailway</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/salihcantekin/unionrailway</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/salihcantekin/unionrailway</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>

@@ -18,7 +18,9 @@ AppDbContext db = await TestDatabase.CreateWithSeedDataAsync();
 
 using var paymentHandler = new FakePaymentHandler();
 using var paymentHttp    = new System.Net.Http.HttpClient(paymentHandler)
-    { BaseAddress = new Uri("https://payments.example.com") };
+{
+    BaseAddress = new Uri("https://payments.example.com")
+};
 
 var productSvc = new ProductService(db);
 var paymentSvc = new PaymentGatewayClient(paymentHttp);
@@ -162,7 +164,7 @@ async Task OrderWithDeclinedCard()
 
     // Capture stock level before the attempt
     (Product? before, UnionError? _) = await productSvc.GetByIdAsync(1);
-    var stockBefore = before!.StockQty;
+    var stockBefore = before.StockQty;
 
     var req = new CreateOrderRequest(CustomerId: 42, ProductId: 1, Quantity: 1);
     (Order _, UnionError? err) = await orderSvc.PlaceOrderAsync(req, cardToken: "card-declined");

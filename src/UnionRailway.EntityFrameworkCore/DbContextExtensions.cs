@@ -46,10 +46,6 @@ public static class DbContextExtensions
         {
             return Union.Fail<TEntity>(new UnionError.SystemFailure(ex));
         }
-        catch (Exception ex)
-        {
-            return Union.Fail<TEntity>(new UnionError.SystemFailure(ex));
-        }
     }
 
     /// <summary>
@@ -68,10 +64,6 @@ public static class DbContextExtensions
             throw;
         }
         catch (DbException ex)
-        {
-            return Union.Fail<List<TEntity>>(new UnionError.SystemFailure(ex));
-        }
-        catch (Exception ex)
         {
             return Union.Fail<List<TEntity>>(new UnionError.SystemFailure(ex));
         }

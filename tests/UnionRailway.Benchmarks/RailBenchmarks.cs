@@ -188,4 +188,41 @@ public class RailBenchmarks
 
     private Rail<int> GetUserIdWithError() =>
         Union.Fail<int>(new UnionError.NotFound("User"));
+
+    // ── Custom Error & Recover Benchmarks ──────────────────────────────
+
+    [Benchmark(Description = "Create Custom error")]
+    public UnionError CreateCustomError()
+    {
+        return new UnionError.Custom("RATE_LIMIT", "Too many requests", StatusCode: 429);
+    }
+
+    [Benchmark(Description = "Create Custom error with Extensions")]
+    public UnionError CreateCustomErrorWithExtensions()
+    {
+        return new UnionError.Custom(
+            "RATE_LIMIT", "Too many requests", StatusCode: 429,
+            Extensions: new Dictionary<string, object> { ["retryAfter"] = 30 });
+    }
+
+    [Benchmark(Description = "Recover (matching error)")]
+    public Rail<string> RecoverMatching()
+    {
+        var result = Union.Fail<string>(new UnionError.NotFound("User"));
+        return result.Recover<string, UnionError.NotFound>(nf => $"default-{nf.Resource}");
+    }
+
+    [Benchmark(Description = "Recover (non-matching error)")]
+    public Rail<string> RecoverNonMatching()
+    {
+        var result = Union.Fail<string>(new UnionError.Conflict("dupe"));
+        return result.Recover<string, UnionError.NotFound>(_ => "fallback");
+    }
+
+    [Benchmark(Description = "Recover (success, no-op)")]
+    public Rail<string> RecoverSuccess()
+    {
+        var result = Union.Ok("hello");
+        return result.Recover<string, UnionError.NotFound>(_ => "fallback");
+    }
 }

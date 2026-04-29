@@ -153,4 +153,46 @@ public static class RailAsyncExtensions
 
     public static async ValueTask<Rail<T>> TapAsync<T>(this ValueTask<Rail<T>> resultTask, Func<T, ValueTask> onOk) =>
         await (await resultTask).TapAsync(onOk);
+
+    /// <summary>Recovers from a specific error type in an asynchronous rail.</summary>
+    public static async Task<Rail<T>> RecoverAsync<T, TError>(
+        this Task<Rail<T>> resultTask,
+        Func<TError, T> recovery)
+        where TError : class
+    {
+        ArgumentNullException.ThrowIfNull(resultTask);
+        return (await resultTask).Recover<T, TError>(recovery);
+    }
+
+    /// <summary>Recovers from a specific error type in an asynchronous rail.</summary>
+    public static async ValueTask<Rail<T>> RecoverAsync<T, TError>(
+        this ValueTask<Rail<T>> resultTask,
+        Func<TError, T> recovery)
+        where TError : class =>
+        (await resultTask).Recover<T, TError>(recovery);
+
+    /// <summary>Recovers from a specific error type in an asynchronous rail with an async recovery function.</summary>
+    public static async Task<Rail<T>> RecoverAsync<T, TError>(
+        this Task<Rail<T>> resultTask,
+        Func<TError, Task<T>> recovery)
+        where TError : class
+    {
+        ArgumentNullException.ThrowIfNull(resultTask);
+        ArgumentNullException.ThrowIfNull(recovery);
+
+        var result = await resultTask;
+        if (result.TryGetError(out var error) && error.GetValueOrDefault().Value is TError typed)
+        {
+            return await recovery(typed);
+        }
+
+        return result;
+    }
+
+    /// <summary>Recovers from a specific error type in an asynchronous rail with an async recovery function.</summary>
+    public static async ValueTask<Rail<T>> RecoverAsync<T, TError>(
+        this ValueTask<Rail<T>> resultTask,
+        Func<TError, ValueTask<T>> recovery)
+        where TError : class =>
+        await (await resultTask).RecoverAsync<T, TError>(recovery);
 }

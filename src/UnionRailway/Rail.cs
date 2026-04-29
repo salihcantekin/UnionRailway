@@ -112,6 +112,8 @@ public readonly struct Rail<T> : IEquatable<Rail<T>>, System.Runtime.CompilerSer
 
     public static implicit operator Rail<T>(UnionError.SystemFailure error) => new((UnionError)error);
 
+    public static implicit operator Rail<T>(UnionError.Custom error) => new((UnionError)error);
+
     /// <summary>Attempts to read the success value.</summary>
     public bool TryGetValue([MaybeNullWhen(false)] out T value)
     {

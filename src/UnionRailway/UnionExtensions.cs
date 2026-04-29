@@ -168,4 +168,46 @@ public static class UnionExtensions
 
         return result;
     }
+
+    /// <summary>
+    /// Recovers from a specific error type by providing a fallback value.
+    /// If the rail contains an error of type <typeparamref name="TError"/>,
+    /// the <paramref name="recovery"/> function is invoked and its result
+    /// replaces the error. Other error types pass through unchanged.
+    /// </summary>
+    public static Rail<T> Recover<T, TError>(
+        this Rail<T> result,
+        Func<TError, T> recovery)
+        where TError : class
+    {
+        ArgumentNullException.ThrowIfNull(recovery);
+
+        if (result.TryGetError(out var error) && error.GetValueOrDefault().Value is TError typed)
+        {
+            return recovery(typed);
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Recovers from a specific error type by providing an asynchronous fallback value.
+    /// If the rail contains an error of type <typeparamref name="TError"/>,
+    /// the <paramref name="recovery"/> function is invoked and its result
+    /// replaces the error. Other error types pass through unchanged.
+    /// </summary>
+    public static async ValueTask<Rail<T>> RecoverAsync<T, TError>(
+        this Rail<T> result,
+        Func<TError, ValueTask<T>> recovery)
+        where TError : class
+    {
+        ArgumentNullException.ThrowIfNull(recovery);
+
+        if (result.TryGetError(out var error) && error.GetValueOrDefault().Value is TError typed)
+        {
+            return await recovery(typed);
+        }
+
+        return result;
+    }
 }

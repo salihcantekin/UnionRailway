@@ -6,7 +6,7 @@
 [![NuGet](https://img.shields.io/nuget/v/UnionRailway.svg)](https://www.nuget.org/packages/UnionRailway)
 [![Downloads](https://img.shields.io/nuget/dt/UnionRailway?label=downloads&color=blue)](https://www.nuget.org/packages/UnionRailway)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![.NET](https://img.shields.io/badge/.NET-8.0-purple)](https://dotnet.microsoft.com)
+[![.NET](https://img.shields.io/badge/.NET-8.0%20%7C%2011.0+-purple)](https://dotnet.microsoft.com)
 
 **Type-safe error handling for C# that actually feels native.**
 
@@ -169,8 +169,30 @@ var message = error.Value switch
     UnionError.Forbidden f      => $"Forbidden: {f.Reason}",
     UnionError.Validation v     => $"{v.Fields.Count} validation errors",
     UnionError.SystemFailure sf => sf.Ex.Message,
+    UnionError.Custom c         => $"{c.Code}: {c.Message}",
     _                           => "Unknown"
 };
+```
+
+#### **Custom Domain Errors**
+
+Don't let the predefined categories limit you. `UnionError.Custom` lets you
+represent application-specific error conditions with a machine-readable code,
+custom HTTP status, and optional metadata:
+
+```csharp
+// Return a domain-specific error
+return new UnionError.Custom(
+    Code: "RATE_LIMIT_EXCEEDED",
+    Message: "Too many requests, please retry later.",
+    StatusCode: 429,
+    Extensions: new Dictionary<string, object>
+    {
+        ["retryAfter"] = 30,
+        ["limit"] = 100
+    });
+
+// Maps to ProblemDetails with errorCode extension and your status code
 ```
 
 ### 2. **Railway Composition**
@@ -178,6 +200,19 @@ var message = error.Value switch
 var result = await GetUserAsync(id)
     .BindAsync(user => GetOrdersAsync(user.Id))
     .MapAsync(orders => new OrderSummary(orders))
+    .ToHttpResultAsync();
+```
+
+#### **Recovery & Side Effects**
+
+```csharp
+// Recover from specific errors with a fallback
+var user = await GetUserAsync(id)
+    .RecoverAsync<User, UnionError.NotFound>(_ => guestUser);
+
+// Execute side effects without changing the value
+var result = await GetUserAsync(id)
+    .TapAsync(user => LogAccessAsync(user.Id))
     .ToHttpResultAsync();
 ```
 
@@ -210,8 +245,11 @@ var maybeUser = await UnionWrapper.RunNullableAsync(() => repo.FindAsync(id));
 |-----------|------|-----------|-------|
 | Create success | **0.5 ns** | **0 B** | Stack-only, zero allocation |
 | Create failure | 2.8 ns | 24 B | Error record allocation |
+| Create Custom error | ~3.5 ns | 32 B | Record with optional extensions |
 | Map operation | 1.3 ns | 0 B | AggressiveInlining |
 | Bind operation | 36 ns | 40 B | Function call overhead |
+| Recover (matching) | ~2 ns | 0 B | Single `is` type check |
+| Recover (non-matching) | ~1 ns | 0 B | Short-circuit, no work |
 | MapAsync | **48 ns** | 0 B | ValueTask overhead only |
 | Service chain (3 ops) | 20 ns | 120 B | Real-world scenario |
 
@@ -220,6 +258,8 @@ var maybeUser = await UnionWrapper.RunNullableAsync(() => repo.FindAsync(id));
 - ✅ Zero allocations on success path
 - ✅ `ValueTask` for async (vs `Task`)
 - ✅ AggressiveInlining on hot paths
+- ✅ `configureProblem` callback is null-guarded — zero overhead when unused
+- ✅ `Custom.Extensions` is `null` by default — pay only when you use it
 
 **Run yourself:**
 ```bash
@@ -290,6 +330,55 @@ app.MapGet("/users/{id:int}", async (int id, UserService service) =>
 app.MapPost("/users", async (CreateUserRequest req, UserService service) =>
     (await service.CreateAsync(req)).ToHttpResult(createdUri: $"/users/{id}"))
     .WithCreatedRailOpenApi<RouteHandlerBuilder, UserDto>();
+
+// Rail<Unit> automatically returns 204 No Content
+app.MapDelete("/users/{id}", async (int id, UserService service) =>
+    (await service.DeleteAsync(id)).ToHttpResult());
+```
+
+#### **Customizing ProblemDetails**
+
+Post-process any `ProblemDetails` response to add trace IDs, strip details
+in production, or enrich extensions:
+
+```csharp
+return result.ToHttpResult(configureProblem: pd =>
+{
+    pd.Extensions["traceId"] = Activity.Current?.Id;
+    if (env.IsProduction())
+        pd.Detail = "An error occurred.";
+});
+```
+
+#### **Custom Error Mapping (`IUnionErrorMapper`)**
+
+For full control over how errors translate to HTTP responses, implement
+`IUnionErrorMapper` and register it in DI. When `TryMap` returns non-null,
+that result is used directly; when it returns `null`, the default RFC 7807
+mapping kicks in:
+
+```csharp
+public class CustomErrorMapper : IUnionErrorMapper
+{
+    public IResult? TryMap(UnionError error) => error.Value switch
+    {
+        UnionError.NotFound nf => Results.Problem(
+            detail: $"We could not locate '{nf.Resource}'.",
+            statusCode: 404,
+            title: "Resource Not Found"),
+        UnionError.Custom { Code: "RATE_LIMIT" } c => Results.Problem(
+            detail: c.Message,
+            statusCode: 429,
+            title: "Rate Limited"),
+        _ => null // fall back to default mapping
+    };
+}
+
+// Registration:
+builder.Services.AddSingleton<IUnionErrorMapper, CustomErrorMapper>();
+
+// Usage (inject via DI or pass directly):
+return result.ToHttpResult(errorMapper: mapper);
 ```
 
 ### **Entity Framework Core**

@@ -26,7 +26,8 @@ public union UnionError(
     UnionError.Unauthorized,
     UnionError.Forbidden,
     UnionError.Validation,
-    UnionError.SystemFailure)
+    UnionError.SystemFailure,
+    UnionError.Custom)
 {
     /// <summary>Returns <see langword="true"/> when the union is the default value.</summary>
     public bool IsDefault => Value is null;
@@ -64,6 +65,21 @@ public union UnionError(
     /// <param name="Ex">The originating exception.</param>
     public sealed record SystemFailure(Exception Ex);
 
+    /// <summary>
+    /// A domain-specific error that does not fit into the predefined categories.
+    /// Use this to represent application-specific error conditions while staying
+    /// within the union error model.
+    /// </summary>
+    /// <param name="Code">A machine-readable error code (e.g. <c>"RATE_LIMIT_EXCEEDED"</c>).</param>
+    /// <param name="Message">A human-readable description of the error.</param>
+    /// <param name="StatusCode">The HTTP status code to use when mapping to a response. Defaults to 422.</param>
+    /// <param name="Extensions">Optional metadata carried alongside the error.</param>
+    public sealed record Custom(
+        string Code,
+        string Message,
+        int StatusCode = 422,
+        IReadOnlyDictionary<string, object>? Extensions = null);
+
     // ── Validation constructors (overloads on the Validation record) ──────────
 
     /// <summary>Creates a <see cref="Validation"/> error from a field-errors dictionary.</summary>
@@ -100,6 +116,8 @@ public readonly struct UnionError : IEquatable<UnionError>, System.Runtime.Compi
 
     public UnionError(SystemFailure value) => this.value = value;
 
+    public UnionError(Custom value) => this.value = value;
+
     /// <summary>Returns <see langword="true"/> when the union is the default value.</summary>
     public bool IsDefault => value is null;
 
@@ -122,6 +140,8 @@ public readonly struct UnionError : IEquatable<UnionError>, System.Runtime.Compi
     public static implicit operator UnionError(Validation value) => new(value);
 
     public static implicit operator UnionError(SystemFailure value) => new(value);
+
+    public static implicit operator UnionError(Custom value) => new(value);
 
     public bool Equals(UnionError other) => Equals(value, other.value);
 
@@ -156,6 +176,21 @@ public readonly struct UnionError : IEquatable<UnionError>, System.Runtime.Compi
     /// <summary>An unexpected system-level failure occurred.</summary>
     /// <param name="Ex">The originating exception.</param>
     public sealed record SystemFailure(Exception Ex);
+
+    /// <summary>
+    /// A domain-specific error that does not fit into the predefined categories.
+    /// Use this to represent application-specific error conditions while staying
+    /// within the union error model.
+    /// </summary>
+    /// <param name="Code">A machine-readable error code (e.g. <c>"RATE_LIMIT_EXCEEDED"</c>).</param>
+    /// <param name="Message">A human-readable description of the error.</param>
+    /// <param name="StatusCode">The HTTP status code to use when mapping to a response. Defaults to 422.</param>
+    /// <param name="Extensions">Optional metadata carried alongside the error.</param>
+    public sealed record Custom(
+        string Code,
+        string Message,
+        int StatusCode = 422,
+        IReadOnlyDictionary<string, object>? Extensions = null);
 
     // ── Validation constructors (overloads on the Validation record) ──────────
 

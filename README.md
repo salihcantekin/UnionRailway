@@ -110,6 +110,15 @@ app.MapGet("/users/{id}", async (int id, UserService service) =>
     (await service.GetUserAsync(id)).ToHttpResult());
 ```
 
+**Or even simpler with the endpoint filter — no `.ToHttpResult()` needed:**
+
+```csharp
+var api = app.MapGroup("/api").WithRailwayFilter();
+
+api.MapGet("/users/{id}", async (int id, UserService svc) =>
+    await svc.GetUserAsync(id));  // Returns Rail<User> directly!
+```
+
 **That's it!** You now have:
 - ✅ Automatic 404 for NotFound
 - ✅ RFC 7807 Problem Details
@@ -379,6 +388,55 @@ builder.Services.AddSingleton<IUnionErrorMapper, CustomErrorMapper>();
 
 // Usage (inject via DI or pass directly):
 return result.ToHttpResult(errorMapper: mapper);
+```
+
+#### **Zero-Boilerplate with `RailEndpointFilter`**
+
+Instead of calling `.ToHttpResult()` on every endpoint, add the filter once
+and return `Rail<T>` directly from your handlers:
+
+```csharp
+// Option 1: Per-group (recommended)
+var api = app.MapGroup("/api").WithRailwayFilter();
+
+api.MapGet("/users/{id}", async (int id, UserService svc) =>
+    await svc.GetUserAsync(id));  // Rail<User> → 200/404 automatically
+
+api.MapDelete("/users/{id}", async (int id, UserService svc) =>
+    await svc.DeleteAsync(id));   // Rail<Unit> → 204 automatically
+
+// Option 2: Per-endpoint
+app.MapGet("/users/{id}", handler).WithRailwayFilter();
+```
+
+The filter resolves `IUnionErrorMapper` and `RailwayOptions` from DI automatically.
+
+#### **Global Exception Handling**
+
+Catch unhandled exceptions across all endpoints and return consistent
+RFC 7807 responses — matching UnionRailway's error format:
+
+```csharp
+var app = builder.Build();
+app.UseRailwayExceptionHandler(); // Add early in pipeline
+app.UseAuthentication();
+app.UseAuthorization();
+```
+
+#### **`AddRailway()` — One-line DI Setup**
+
+Register all UnionRailway services with a single call:
+
+```csharp
+builder.Services.AddRailway(options =>
+{
+    // Global ProblemDetails enrichment (applied to ALL error responses)
+    options.ConfigureProblem = pd =>
+        pd.Extensions["traceId"] = Activity.Current?.Id;
+});
+
+// Or with a custom mapper:
+builder.Services.AddRailway<CustomErrorMapper>(options => ...);
 ```
 
 ### **Entity Framework Core**

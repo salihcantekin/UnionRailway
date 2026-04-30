@@ -618,7 +618,7 @@ api.MapGet("/users/{id}",
       <div class="card">
         <span class="card-icon">🔮</span>
         <h3>.NET 11 union-ready</h3>
-        <p>The struct polyfill is designed to be a drop-in for native C# union types — <strong>zero breaking changes</strong> when they ship.</p>
+        <p>The struct polyfill is designed as a drop-in for native C# union types — aiming for minimal breaking changes when they ship.</p>
       </div>
     </div>
   </div>
@@ -1294,7 +1294,7 @@ return result.ToHttpResult();
     <div class="section-title">
       <div class="tag">.NET 11 Ready</div>
       <h2>Future-proof from day one</h2>
-      <p>UnionRailway is designed for <strong>zero breaking changes</strong> when C# ships native union types.</p>
+      <p>UnionRailway is designed to require minimal migration effort when C# ships native union types.</p>
     </div>
     <div class="split">
       <div class="split-card">
@@ -1306,11 +1306,11 @@ public readonly struct Rail&lt;T&gt;
 }</code></pre>
       </div>
       <div class="split-card good">
-        <h3 style="margin-bottom:16px">Tomorrow — .NET 11 native</h3>
-<pre><code class="language-csharp">// Native C# union (planned)
+        <h3 style="margin-bottom:16px">Tomorrow — .NET 11 native (design goal)</h3>
+<pre><code class="language-csharp">// Illustrative — syntax not yet finalised by the C# team
 public union Rail&lt;T&gt;(T, UnionError);
 
-// Your code: no changes needed 🎉</code></pre>
+// The library is designed so your call-sites need few changes 🎉</code></pre>
       </div>
     </div>
   </div>

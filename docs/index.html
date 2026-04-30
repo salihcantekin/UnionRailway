@@ -1,0 +1,1361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>UnionRailway — Type-safe error handling for C#</title>
+  <meta name="description" content="Type-safe error handling for C# that actually feels native. Zero boilerplate, RFC 7807 Problem Details, built-in ASP.NET Core / EF Core / HttpClient integration." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚂</text></svg>" />
+
+  <!-- Prism.js syntax highlighting -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-csharp.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js" defer></script>
+
+  <style>
+    /* ─── Reset & Base ────────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0d1117;
+      --bg-card:   #161b22;
+      --bg-code:   #1a1f2b;
+      --border:    #30363d;
+      --text:      #c9d1d9;
+      --text-muted:#8b949e;
+      --heading:   #f0f6fc;
+      --accent:    #58a6ff;
+      --accent2:   #3fb950;
+      --accent3:   #f78166;
+      --accent4:   #d2a8ff;
+      --radius:    10px;
+      --shadow:    0 4px 24px rgba(0,0,0,.5);
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.7;
+      font-size: 16px;
+    }
+
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    h1, h2, h3, h4 { color: var(--heading); line-height: 1.3; }
+
+    /* ─── Layout helpers ──────────────────────────────────────────────────── */
+    .container { max-width: 1100px; margin: 0 auto; padding: 0 24px; }
+    .section    { padding: 80px 0; }
+    .section + .section { border-top: 1px solid var(--border); }
+
+    /* ─── Nav ─────────────────────────────────────────────────────────────── */
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(13,17,23,.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 0;
+    }
+    nav .container {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .nav-logo {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--heading);
+      white-space: nowrap;
+    }
+    .nav-logo span { color: var(--accent); }
+    .nav-links {
+      display: flex;
+      gap: 24px;
+      list-style: none;
+      margin-left: auto;
+      flex-wrap: wrap;
+    }
+    .nav-links a {
+      color: var(--text-muted);
+      font-size: .92rem;
+      transition: color .2s;
+    }
+    .nav-links a:hover { color: var(--heading); text-decoration: none; }
+    .nav-gh {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text) !important;
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: .88rem;
+      font-weight: 500;
+      transition: border-color .2s;
+    }
+    .nav-gh:hover { border-color: var(--accent); text-decoration: none !important; }
+
+    /* ─── Hero ────────────────────────────────────────────────────────────── */
+    .hero {
+      padding: 100px 0 80px;
+      text-align: center;
+      background: radial-gradient(ellipse 80% 50% at 50% -10%, rgba(88,166,255,.12) 0%, transparent 70%);
+    }
+    .hero-emoji { font-size: 4rem; margin-bottom: 16px; display: block; }
+    .hero h1 {
+      font-size: clamp(2.4rem, 6vw, 4rem);
+      font-weight: 800;
+      letter-spacing: -.5px;
+      margin-bottom: 20px;
+    }
+    .hero h1 span { color: var(--accent); }
+    .hero p {
+      font-size: 1.2rem;
+      color: var(--text-muted);
+      max-width: 600px;
+      margin: 0 auto 32px;
+    }
+    .badges {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 40px;
+    }
+    .badges img { height: 22px; }
+    .hero-btns {
+      display: flex;
+      gap: 14px;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-bottom: 48px;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 28px;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      transition: transform .15s, opacity .15s;
+    }
+    .btn:hover { transform: translateY(-2px); opacity: .9; text-decoration: none; }
+    .btn-primary { background: var(--accent); color: #0d1117; }
+    .btn-outline { background: transparent; border: 2px solid var(--border); color: var(--heading); }
+    .btn-outline:hover { border-color: var(--accent); }
+
+    .install-box {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--bg-code);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 24px;
+      font-family: 'SFMono-Regular', Consolas, monospace;
+      font-size: .95rem;
+      color: var(--accent2);
+      cursor: pointer;
+      transition: border-color .2s;
+      max-width: 100%;
+      overflow-x: auto;
+    }
+    .install-box:hover { border-color: var(--accent); }
+    .copy-hint { font-size: .75rem; color: var(--text-muted); font-family: inherit; white-space: nowrap; }
+
+    /* ─── Problem / Solution split ────────────────────────────────────────── */
+    .split {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 32px;
+    }
+    @media (max-width: 760px) { .split { grid-template-columns: 1fr; } }
+
+    .split-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px;
+    }
+    .split-card.bad  { border-top: 3px solid var(--accent3); }
+    .split-card.good { border-top: 3px solid var(--accent2); }
+    .split-card h3 { margin-bottom: 16px; font-size: 1.1rem; }
+
+    /* ─── Section headings ────────────────────────────────────────────────── */
+    .section-title {
+      text-align: center;
+      margin-bottom: 56px;
+    }
+    .section-title h2 { font-size: clamp(1.8rem, 4vw, 2.6rem); margin-bottom: 12px; }
+    .section-title p  { color: var(--text-muted); max-width: 560px; margin: 0 auto; font-size: 1.05rem; }
+    .tag {
+      display: inline-block;
+      background: rgba(88,166,255,.15);
+      color: var(--accent);
+      border: 1px solid rgba(88,166,255,.3);
+      border-radius: 50px;
+      padding: 4px 14px;
+      font-size: .82rem;
+      font-weight: 600;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      margin-bottom: 14px;
+    }
+
+    /* ─── Feature cards ───────────────────────────────────────────────────── */
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 20px;
+    }
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px;
+      transition: border-color .2s, transform .2s;
+    }
+    .card:hover { border-color: var(--accent); transform: translateY(-3px); }
+    .card-icon { font-size: 2rem; margin-bottom: 14px; display: block; }
+    .card h3   { font-size: 1.05rem; margin-bottom: 8px; }
+    .card p    { font-size: .92rem; color: var(--text-muted); }
+
+    /* ─── Tabs ────────────────────────────────────────────────────────────── */
+    .tabs { margin-bottom: 0; }
+    .tab-list {
+      display: flex;
+      gap: 4px;
+      background: var(--bg-code);
+      border: 1px solid var(--border);
+      border-bottom: none;
+      border-radius: var(--radius) var(--radius) 0 0;
+      padding: 8px 8px 0;
+      flex-wrap: wrap;
+    }
+    .tab-btn {
+      padding: 8px 18px;
+      background: transparent;
+      border: none;
+      border-radius: 6px 6px 0 0;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: .9rem;
+      font-weight: 500;
+      transition: color .2s, background .2s;
+    }
+    .tab-btn:hover   { color: var(--heading); }
+    .tab-btn.active  { background: var(--bg-card); color: var(--accent); }
+    .tab-pane        { display: none; }
+    .tab-pane.active { display: block; }
+    .tab-pane pre {
+      margin: 0 !important;
+      border-radius: 0 0 var(--radius) var(--radius) !important;
+      border: 1px solid var(--border) !important;
+    }
+
+    /* ─── Prism overrides ─────────────────────────────────────────────────── */
+    pre[class*="language-"] {
+      background: var(--bg-code) !important;
+      border-radius: var(--radius);
+      font-size: .88rem;
+      margin: 0;
+      overflow-x: auto;
+    }
+    code[class*="language-"] { font-size: .88rem; }
+    :not(pre) > code {
+      background: var(--bg-code);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 2px 7px;
+      font-size: .86em;
+      color: var(--accent4);
+      font-family: 'SFMono-Regular', Consolas, monospace;
+    }
+
+    /* ─── Tables ──────────────────────────────────────────────────────────── */
+    .table-wrap { overflow-x: auto; border-radius: var(--radius); border: 1px solid var(--border); }
+    table { width: 100%; border-collapse: collapse; font-size: .92rem; }
+    th {
+      background: var(--bg-code);
+      color: var(--heading);
+      font-weight: 600;
+      padding: 14px 18px;
+      text-align: left;
+      border-bottom: 2px solid var(--border);
+      white-space: nowrap;
+    }
+    td { padding: 12px 18px; border-bottom: 1px solid var(--border); vertical-align: top; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255,255,255,.02); }
+    .yes { color: var(--accent2); font-weight: 600; }
+    .no  { color: var(--accent3); }
+    .na  { color: var(--text-muted); }
+
+    /* ─── Error types grid ────────────────────────────────────────────────── */
+    .error-types-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 14px;
+    }
+    .error-chip {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px 20px;
+    }
+    .error-chip .ename { font-weight: 700; font-family: monospace; color: var(--accent4); font-size: .95rem; }
+    .error-chip .edesc { font-size: .85rem; color: var(--text-muted); margin-top: 4px; }
+    .error-chip .estatus {
+      display: inline-block;
+      margin-top: 8px;
+      background: rgba(88,166,255,.12);
+      border: 1px solid rgba(88,166,255,.25);
+      color: var(--accent);
+      border-radius: 4px;
+      padding: 2px 8px;
+      font-size: .78rem;
+      font-family: monospace;
+    }
+
+    /* ─── Benchmarks ──────────────────────────────────────────────────────── */
+    .bench-highlight {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px 32px;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 24px;
+      margin-bottom: 32px;
+    }
+    .bench-stat { text-align: center; }
+    .bench-stat .val  { font-size: 2.4rem; font-weight: 800; color: var(--accent2); line-height: 1; }
+    .bench-stat .unit { font-size: .85rem; color: var(--text-muted); }
+    .bench-stat .label{ font-size: .9rem; color: var(--text); margin-top: 6px; }
+
+    /* ─── Packages ────────────────────────────────────────────────────────── */
+    .pkg-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 18px;
+    }
+    .pkg-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      transition: border-color .2s;
+    }
+    .pkg-card:hover { border-color: var(--accent); }
+    .pkg-name {
+      font-family: 'SFMono-Regular', Consolas, monospace;
+      font-weight: 700;
+      color: var(--accent4);
+      font-size: .95rem;
+      margin-bottom: 8px;
+    }
+    .pkg-desc { font-size: .9rem; color: var(--text-muted); margin-bottom: 14px; }
+    .pkg-badges { display: flex; gap: 8px; flex-wrap: wrap; }
+    .pkg-badges img { height: 20px; }
+
+    /* ─── Comparison section ──────────────────────────────────────────────── */
+    .vs-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 32px;
+    }
+    @media (max-width: 760px) { .vs-grid { grid-template-columns: 1fr; } }
+    .vs-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .vs-card-header {
+      padding: 14px 20px;
+      background: var(--bg-code);
+      border-bottom: 1px solid var(--border);
+      font-size: .9rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .vs-card pre {
+      margin: 0 !important;
+      border-radius: 0 !important;
+      border: none !important;
+    }
+
+    /* ─── Footer ──────────────────────────────────────────────────────────── */
+    footer {
+      background: var(--bg-card);
+      border-top: 1px solid var(--border);
+      padding: 48px 0;
+      text-align: center;
+    }
+    footer p { color: var(--text-muted); font-size: .9rem; margin-bottom: 8px; }
+    .footer-links {
+      display: flex;
+      justify-content: center;
+      gap: 24px;
+      margin-top: 16px;
+      flex-wrap: wrap;
+    }
+    .footer-links a { color: var(--text-muted); font-size: .88rem; }
+    .footer-links a:hover { color: var(--text); }
+
+    /* ─── Callout ─────────────────────────────────────────────────────────── */
+    .callout {
+      background: rgba(88,166,255,.07);
+      border: 1px solid rgba(88,166,255,.25);
+      border-left: 4px solid var(--accent);
+      border-radius: 8px;
+      padding: 16px 20px;
+      font-size: .93rem;
+      color: var(--text);
+      margin: 20px 0;
+    }
+    .callout.green {
+      background: rgba(63,185,80,.07);
+      border-color: rgba(63,185,80,.25);
+      border-left-color: var(--accent2);
+    }
+
+    /* ─── Prose ───────────────────────────────────────────────────────────── */
+    .prose { max-width: 820px; margin: 0 auto; }
+    .prose h3 { margin: 32px 0 10px; font-size: 1.25rem; }
+    .prose p  { margin-bottom: 16px; }
+    .prose ul { margin: 12px 0 16px 20px; }
+    .prose li { margin-bottom: 6px; }
+
+    /* ─── Mobile tweaks ───────────────────────────────────────────────────── */
+    @media (max-width: 600px) {
+      .hero { padding: 60px 0 50px; }
+      .section { padding: 56px 0; }
+      .bench-highlight { padding: 20px; }
+      th, td { padding: 10px 12px; font-size: .84rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ─── Nav ─────────────────────────────────────────────────────────────── -->
+<nav>
+  <div class="container">
+    <span class="nav-logo">🚂 Union<span>Railway</span></span>
+    <ul class="nav-links">
+      <li><a href="#features">Features</a></li>
+      <li><a href="#code-examples">Examples</a></li>
+      <li><a href="#errors">Error Types</a></li>
+      <li><a href="#performance">Performance</a></li>
+      <li><a href="#comparison">vs Others</a></li>
+      <li><a href="#packages">Packages</a></li>
+    </ul>
+    <a class="nav-gh" href="https://github.com/salihcantekin/UnionRailway" target="_blank" rel="noopener">
+      <svg height="16" width="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+      GitHub
+    </a>
+  </div>
+</nav>
+
+<!-- ─── Hero ─────────────────────────────────────────────────────────────── -->
+<section class="hero">
+  <div class="container">
+    <span class="hero-emoji">🚂</span>
+    <h1>Union<span>Railway</span></h1>
+    <p>Type-safe error handling for C# that actually <em>feels native</em>.<br/>Zero boilerplate. RFC 7807 Problem Details. Built-in ecosystem integration.</p>
+
+    <div class="badges">
+      <img src="https://img.shields.io/github/actions/workflow/status/salihcantekin/UnionRailway/ci.yml?branch=main&label=build" alt="Build" />
+      <img src="https://img.shields.io/nuget/v/UnionRailway.svg" alt="NuGet" />
+      <img src="https://img.shields.io/nuget/dt/UnionRailway?label=downloads&color=blue" alt="Downloads" />
+      <img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License" />
+      <img src="https://img.shields.io/badge/.NET-8.0%20%7C%2011.0+-purple" alt=".NET" />
+    </div>
+
+    <div class="hero-btns">
+      <a href="#code-examples" class="btn btn-primary">🚀 Quick Start</a>
+      <a href="https://github.com/salihcantekin/UnionRailway" target="_blank" rel="noopener" class="btn btn-outline">View on GitHub</a>
+    </div>
+
+    <div>
+      <div class="install-box" onclick="copyInstall(this)" title="Click to copy">
+        <span>$ dotnet add package UnionRailway</span>
+        <span class="copy-hint">click to copy</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── Problem / Solution ────────────────────────────────────────────────── -->
+<section class="section" id="problem">
+  <div class="container">
+    <div class="section-title">
+      <div class="tag">The Problem</div>
+      <h2>Exception-based error handling is broken</h2>
+      <p>Exceptions are slow, invisible to callers, and create inconsistent API responses. There's a better way.</p>
+    </div>
+
+    <div class="split">
+      <div class="split-card bad">
+        <h3>❌ Without UnionRailway</h3>
+<pre><code class="language-csharp">public async Task&lt;IResult&gt; GetUser(int id)
+{
+    try
+    {
+        var user = await db.Users.FindAsync(id);
+        if (user == null)
+            return Results.NotFound();
+
+        return Results.Ok(user);
+    }
+    catch (UnauthorizedAccessException)
+    {
+        return Results.Unauthorized();
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Failed");
+        return Results.Problem("Something went wrong");
+    }
+}</code></pre>
+        <ul style="margin:16px 0 0 20px;font-size:.9rem;color:var(--text-muted)">
+          <li>Exceptions for control flow (slow)</li>
+          <li>Caller doesn't know what errors to expect</li>
+          <li>Inconsistent error shapes across endpoints</li>
+          <li>Manual mapping everywhere</li>
+        </ul>
+      </div>
+
+      <div class="split-card good">
+        <h3>✅ With UnionRailway</h3>
+<pre><code class="language-csharp">// Service method — one line
+public async ValueTask&lt;Rail&lt;User&gt;&gt; GetUserAsync(int id)
+    => await db.Users
+         .FirstOrDefaultAsUnionAsync("User", x =&gt; x.Id == id);
+
+// Minimal API endpoint — one line
+app.MapGet("/users/{id:int}",
+    async (int id, UserService svc) =&gt;
+        (await svc.GetUserAsync(id)).ToHttpResult());
+
+// Or zero-boilerplate with the endpoint filter:
+var api = app.MapGroup("/api").WithRailwayFilter();
+
+api.MapGet("/users/{id}",
+    async (int id, UserService svc) =&gt;
+        await svc.GetUserAsync(id)); // Rail&lt;User&gt; returned directly!</code></pre>
+        <ul style="margin:16px 0 0 20px;font-size:.9rem;color:var(--text-muted)">
+          <li>Compiler-enforced error handling</li>
+          <li>RFC 7807 Problem Details — automatic</li>
+          <li>Consistent vocabulary from DB → HTTP</li>
+          <li>Zero allocations on the success path</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── Features ─────────────────────────────────────────────────────────── -->
+<section class="section" id="features">
+  <div class="container">
+    <div class="section-title">
+      <div class="tag">Features</div>
+      <h2>Everything you need, nothing you don't</h2>
+      <p>UnionRailway is focused. ~15 core methods, deep ecosystem integration, and a clean learning curve.</p>
+    </div>
+
+    <div class="cards-grid">
+      <div class="card">
+        <span class="card-icon">🎯</span>
+        <h3>Struct-based <code>Rail&lt;T&gt;</code></h3>
+        <p>Lives on the stack. Zero allocations on the happy path. The success value is always <strong>0.5 ns</strong> away.</p>
+      </div>
+      <div class="card">
+        <span class="card-icon">🔒</span>
+        <h3>Closed union errors</h3>
+        <p>Seven semantic error variants (NotFound, Conflict, Unauthorized, Forbidden, Validation, SystemFailure, Custom) — no string soup.</p>
+      </div>
+      <div class="card">
+        <span class="card-icon">⚡</span>
+        <h3>RFC 7807 Problem Details</h3>
+        <p>One call to <code>.ToHttpResult()</code> produces standards-compliant Problem Details responses. No manual mapping.</p>
+      </div>
+      <div class="card">
+        <span class="card-icon">🛤️</span>
+        <h3>Railway composition</h3>
+        <p><code>Map</code>, <code>Bind</code>, <code>Tap</code>, <code>Recover</code> — chain operations while short-circuiting on the first error.</p>
+      </div>
+      <div class="card">
+        <span class="card-icon">🌐</span>
+        <h3>ASP.NET Core integration</h3>
+        <p>Endpoint filter, global exception handler, <code>AddRailway()</code> DI setup, and OpenAPI metadata — all built-in.</p>
+      </div>
+      <div class="card">
+        <span class="card-icon">🗄️</span>
+        <h3>EF Core helpers</h3>
+        <p><code>FirstOrDefaultAsUnionAsync</code> and <code>SaveChangesAsUnionAsync</code> replace boilerplate null checks and try-catch.</p>
+      </div>
+      <div class="card">
+        <span class="card-icon">🌍</span>
+        <h3>HttpClient helpers</h3>
+        <p><code>GetFromJsonAsUnionAsync</code> automatically maps 4xx/5xx status codes to typed <code>UnionError</code> variants.</p>
+      </div>
+      <div class="card">
+        <span class="card-icon">🔄</span>
+        <h3>Migration wrappers</h3>
+        <p><code>UnionWrapper.RunAsync</code> and <code>RunNullableAsync</code> wrap legacy exception-based or nullable code without refactoring.</p>
+      </div>
+      <div class="card">
+        <span class="card-icon">🔮</span>
+        <h3>.NET 11 union-ready</h3>
+        <p>The struct polyfill is designed to be a drop-in for native C# union types — <strong>zero breaking changes</strong> when they ship.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── Code Examples ─────────────────────────────────────────────────────── -->
+<section class="section" id="code-examples">
+  <div class="container">
+    <div class="section-title">
+      <div class="tag">Code Examples</div>
+      <h2>See it in action</h2>
+      <p>From the core types to ASP.NET Core, EF Core, and HttpClient — one pattern, everywhere.</p>
+    </div>
+
+    <div class="tabs">
+      <div class="tab-list" role="tablist">
+        <button class="tab-btn active" role="tab" onclick="switchTab(event,'core')">Core</button>
+        <button class="tab-btn" role="tab" onclick="switchTab(event,'aspnet')">ASP.NET Core</button>
+        <button class="tab-btn" role="tab" onclick="switchTab(event,'efcore')">EF Core</button>
+        <button class="tab-btn" role="tab" onclick="switchTab(event,'httpclient')">HttpClient</button>
+        <button class="tab-btn" role="tab" onclick="switchTab(event,'composition')">Composition</button>
+        <button class="tab-btn" role="tab" onclick="switchTab(event,'migration')">Migration</button>
+      </div>
+
+      <!-- Core -->
+      <div class="tab-pane active" id="tab-core">
+<pre><code class="language-csharp">// 1. Return Rail&lt;T&gt; from your service methods
+public class UserService
+{
+    public async ValueTask&lt;Rail&lt;User&gt;&gt; GetUserAsync(int id)
+    {
+        var user = await db.Users.FindAsync(id);
+        if (user == null)
+            return new UnionError.NotFound("User");  // explicit error
+
+        return user;  // implicit conversion ✅
+    }
+
+    public async ValueTask&lt;Rail&lt;Unit&gt;&gt; DeleteUserAsync(int id)
+    {
+        var user = await db.Users.FindAsync(id);
+        if (user == null)
+            return new UnionError.NotFound("User");
+
+        db.Users.Remove(user);
+        await db.SaveChangesAsync();
+        return Unit.Value; // 204 No Content
+    }
+}
+
+// 2. Pattern matching — choose your style
+Rail&lt;User&gt; result = await service.GetUserAsync(id);
+
+// Style A: IsSuccess out-parameter (early return, recommended)
+if (!result.IsSuccess(out var user, out var error))
+    return error.GetValueOrDefault().ToHttpResult();
+Console.WriteLine(user.Name);
+
+// Style B: Match
+return result.Match(
+    onOk:    u   =&gt; Results.Ok(u),
+    onError: err =&gt; err.ToHttpResult());
+
+// Style C: Error property check
+if (result.Error is not null)
+    return result.Error.GetValueOrDefault().ToHttpResult();
+
+// 3. Explicit helpers
+var ok   = Union.Ok(new User { Id = 1 });
+var fail = Union.Fail&lt;User&gt;(new UnionError.NotFound("User"));</code></pre>
+      </div>
+
+      <!-- ASP.NET Core -->
+      <div class="tab-pane" id="tab-aspnet">
+<pre><code class="language-csharp">// One-line DI setup
+builder.Services.AddRailway(options =&gt;
+{
+    // Global ProblemDetails enrichment — applied to ALL error responses
+    options.ConfigureProblem = pd =&gt;
+        pd.Extensions["traceId"] = Activity.Current?.Id;
+});
+
+// Or with a custom mapper:
+builder.Services.AddRailway&lt;CustomErrorMapper&gt;();
+
+// Global exception middleware (add early in pipeline)
+app.UseRailwayExceptionHandler();
+
+// ── Option A: .ToHttpResult() per endpoint ──────────────────────────────
+app.MapGet("/users/{id:int}", async (int id, UserService svc) =&gt;
+    (await svc.GetUserAsync(id)).ToHttpResult());
+
+// POST: returns 201 Created with Location header
+app.MapPost("/users", async (CreateUserRequest req, UserService svc) =&gt;
+    (await svc.CreateAsync(req)).ToHttpResult(createdUri: $"/users/{req.Id}"))
+    .WithCreatedRailOpenApi&lt;RouteHandlerBuilder, UserDto&gt;();
+
+// DELETE: Rail&lt;Unit&gt; → 204 No Content automatically
+app.MapDelete("/users/{id}", async (int id, UserService svc) =&gt;
+    (await svc.DeleteAsync(id)).ToHttpResult());
+
+// Inline ProblemDetails customisation
+return result.ToHttpResult(configureProblem: pd =&gt;
+{
+    pd.Extensions["traceId"] = Activity.Current?.Id;
+    if (env.IsProduction())
+        pd.Detail = "An error occurred.";
+});
+
+// ── Option B: Zero-boilerplate endpoint filter ───────────────────────────
+var api = app.MapGroup("/api").WithRailwayFilter();
+
+api.MapGet("/users/{id}",
+    async (int id, UserService svc) =&gt;
+        await svc.GetUserAsync(id));   // Rail&lt;User&gt; → 200 / 404 auto
+
+api.MapDelete("/users/{id}",
+    async (int id, UserService svc) =&gt;
+        await svc.DeleteAsync(id));    // Rail&lt;Unit&gt; → 204 auto
+
+// ── Option C: Custom error mapper ───────────────────────────────────────
+public class CustomErrorMapper : IUnionErrorMapper
+{
+    public IResult? TryMap(UnionError error) =&gt; error.Value switch
+    {
+        UnionError.NotFound nf =&gt; Results.Problem(
+            detail: $"Could not locate '{nf.Resource}'.",
+            statusCode: 404, title: "Resource Not Found"),
+        UnionError.Custom { Code: "RATE_LIMIT" } c =&gt; Results.Problem(
+            detail: c.Message, statusCode: 429, title: "Rate Limited"),
+        _ =&gt; null   // fall back to default RFC 7807 mapping
+    };
+}</code></pre>
+      </div>
+
+      <!-- EF Core -->
+      <div class="tab-pane" id="tab-efcore">
+<pre><code class="language-csharp">// Install: dotnet add package UnionRailway.EntityFrameworkCore
+
+// ── FirstOrDefaultAsUnionAsync ───────────────────────────────────────────
+// Replaces: var user = await db.Users.FirstOrDefaultAsync(...);
+//           if (user == null) return NotFound();
+
+Rail&lt;User&gt; user = await db.Users
+    .FirstOrDefaultAsUnionAsync("User", x =&gt; x.Id == id);
+// ✅ Returns NotFound("User") automatically when null
+
+// With cancellation token
+Rail&lt;User&gt; user = await db.Users
+    .FirstOrDefaultAsUnionAsync("User", x =&gt; x.Id == id, cancellationToken);
+
+// ── SaveChangesAsUnionAsync ──────────────────────────────────────────────
+// Returns Rail&lt;int&gt; (rows affected), wraps DbUpdateException → SystemFailure
+
+Rail&lt;int&gt; saved = await db.SaveChangesAsUnionAsync();
+if (!saved.IsSuccess(out var rows, out var err))
+    return err.GetValueOrDefault().ToHttpResult();
+
+Console.WriteLine($"{rows} row(s) saved.");
+
+// ── Full service example ─────────────────────────────────────────────────
+public class ProductService(AppDbContext db)
+{
+    public async ValueTask&lt;Rail&lt;Product&gt;&gt; GetProductAsync(int id) =&gt;
+        await db.Products.FirstOrDefaultAsUnionAsync("Product", p =&gt; p.Id == id);
+
+    public async ValueTask&lt;Rail&lt;Unit&gt;&gt; UpdateProductAsync(int id, UpdateDto dto)
+    {
+        var product = await db.Products.FirstOrDefaultAsUnionAsync("Product", p =&gt; p.Id == id);
+        if (!product.IsSuccess(out var p, out var err))
+            return err.GetValueOrDefault();
+
+        p.Name = dto.Name;
+        p.Price = dto.Price;
+        var saved = await db.SaveChangesAsUnionAsync();
+        return saved.IsSuccess(out _, out var saveErr) ? Unit.Value : saveErr.GetValueOrDefault();
+    }
+}</code></pre>
+      </div>
+
+      <!-- HttpClient -->
+      <div class="tab-pane" id="tab-httpclient">
+<pre><code class="language-csharp">// Install: dotnet add package UnionRailway.HttpClient
+
+// ── GET ──────────────────────────────────────────────────────────────────
+Rail&lt;UserDto&gt; result = await httpClient
+    .GetFromJsonAsUnionAsync&lt;UserDto&gt;("/users/42");
+
+// Automatic mapping:
+//   2xx  → Rail&lt;T&gt; with the deserialized body
+//   404  → UnionError.NotFound
+//   401  → UnionError.Unauthorized
+//   403  → UnionError.Forbidden
+//   409  → UnionError.Conflict
+//   422  → UnionError.Validation
+//   5xx  → UnionError.SystemFailure
+
+// ── POST ─────────────────────────────────────────────────────────────────
+Rail&lt;UserDto&gt; created = await httpClient
+    .PostAsJsonAsUnionAsync&lt;CreateUserRequest, UserDto&gt;(
+        "/users", new CreateUserRequest("Alice"));
+
+// ── Chaining with the result ─────────────────────────────────────────────
+var summary = await httpClient
+    .GetFromJsonAsUnionAsync&lt;User&gt;("/users/42")
+    .BindAsync(u =&gt; httpClient.GetFromJsonAsUnionAsync&lt;Order[]&gt;($"/orders?userId={u.Id}"))
+    .MapAsync(orders =&gt; new OrderSummary(orders.Length));
+
+return summary.ToHttpResult();</code></pre>
+      </div>
+
+      <!-- Composition -->
+      <div class="tab-pane" id="tab-composition">
+<pre><code class="language-csharp">// ── Map: transform a successful value ────────────────────────────────────
+Rail&lt;int&gt; doubled = Union.Ok(5).Map(x =&gt; x * 2);       // Ok(10)
+Rail&lt;int&gt; skipped = Union.Fail&lt;int&gt;(err).Map(x =&gt; x * 2); // still Fail
+
+// ── Bind: chain operations that may also fail ────────────────────────────
+Rail&lt;OrderSummary&gt; summary =
+    await GetUserAsync(id)                             // Rail&lt;User&gt;
+        .BindAsync(u =&gt; GetOrdersAsync(u.Id))          // Rail&lt;Order[]&gt;
+        .MapAsync(orders =&gt; new OrderSummary(orders)); // Rail&lt;OrderSummary&gt;
+
+// ── Tap: side effects without altering the value ─────────────────────────
+var result = await GetUserAsync(id)
+    .TapAsync(u =&gt; logger.LogInformation("Accessed user {Id}", u.Id))
+    .ToHttpResultAsync();   // side effect only on success path
+
+// ── Recover: provide a fallback for specific error types ─────────────────
+Rail&lt;User&gt; withFallback = await GetUserAsync(id)
+    .RecoverAsync&lt;User, UnionError.NotFound&gt;(_ =&gt; guestUser);
+
+// More selective recovery
+Rail&lt;User&gt; partial = await GetUserAsync(id)
+    .RecoverAsync&lt;User, UnionError.Unauthorized&gt;(_ =&gt;
+        new User { Id = 0, Name = "Anonymous" });
+
+// ── Full chain example ────────────────────────────────────────────────────
+return await GetUserAsync(id)
+    .TapAsync(u =&gt; auditLog.LogAccessAsync(u.Id))
+    .BindAsync(u =&gt; GetPermissionsAsync(u.Id))
+    .MapAsync(perms =&gt; new UserProfile(perms))
+    .RecoverAsync&lt;UserProfile, UnionError.NotFound&gt;(_ =&gt; UserProfile.Guest)
+    .ToHttpResultAsync();</code></pre>
+      </div>
+
+      <!-- Migration -->
+      <div class="tab-pane" id="tab-migration">
+<pre><code class="language-csharp">// ── Wrap exception-based legacy code ─────────────────────────────────────
+Rail&lt;Report&gt; result = await UnionWrapper.RunAsync(
+    () =&gt; legacyReportService.GenerateAsync(reportId));
+// Any exception → UnionError.SystemFailure(ex)
+
+// ── Wrap nullable-returning code ─────────────────────────────────────────
+Rail&lt;User&gt; maybeUser = await UnionWrapper.RunNullableAsync(
+    () =&gt; legacyRepo.FindByEmailAsync(email));
+// null → UnionError.NotFound("value")
+
+// ── From LanguageExt (Fin&lt;T&gt;) ─────────────────────────────────────────────
+// Before:
+Fin&lt;User&gt; fin = await repo.GetAsync(id);
+return fin.Match(Succ: u =&gt; Results.Ok(u), Fail: e =&gt; Results.Problem(e.Message));
+
+// After:
+Rail&lt;User&gt; rail = await repo.GetAsync(id);  // change return type
+return rail.ToHttpResult();
+
+// ── From ErrorOr ─────────────────────────────────────────────────────────
+// Before:
+ErrorOr&lt;User&gt; eo = await repo.GetAsync(id);
+if (eo.IsError) return eo.Errors[0];
+
+// After:
+Rail&lt;User&gt; rail = await repo.GetAsync(id);
+if (!rail.IsSuccess(out var user, out var err))
+    return err.GetValueOrDefault();</code></pre>
+      </div>
+    </div><!-- /tabs -->
+  </div>
+</section>
+
+<!-- ─── Error Types ────────────────────────────────────────────────────────── -->
+<section class="section" id="errors">
+  <div class="container">
+    <div class="section-title">
+      <div class="tag">Error Types</div>
+      <h2>Semantic, closed union errors</h2>
+      <p>Every possible error outcome is a named type — no stringly-typed messages, no magic numbers.</p>
+    </div>
+
+    <div class="error-types-grid" style="margin-bottom:32px">
+      <div class="error-chip">
+        <div class="ename">NotFound</div>
+        <div class="edesc">A resource with the given identifier does not exist.</div>
+        <span class="estatus">HTTP 404</span>
+      </div>
+      <div class="error-chip">
+        <div class="ename">Conflict</div>
+        <div class="edesc">The operation conflicts with the current resource state.</div>
+        <span class="estatus">HTTP 409</span>
+      </div>
+      <div class="error-chip">
+        <div class="ename">Unauthorized</div>
+        <div class="edesc">The caller is not authenticated.</div>
+        <span class="estatus">HTTP 401</span>
+      </div>
+      <div class="error-chip">
+        <div class="ename">Forbidden</div>
+        <div class="edesc">The caller is authenticated but lacks permission.</div>
+        <span class="estatus">HTTP 403</span>
+      </div>
+      <div class="error-chip">
+        <div class="ename">Validation</div>
+        <div class="edesc">One or more input fields failed validation.</div>
+        <span class="estatus">HTTP 422</span>
+      </div>
+      <div class="error-chip">
+        <div class="ename">SystemFailure</div>
+        <div class="edesc">An unexpected exception or infrastructure error.</div>
+        <span class="estatus">HTTP 500</span>
+      </div>
+      <div class="error-chip">
+        <div class="ename">Custom</div>
+        <div class="edesc">Domain-specific error with a machine-readable code and optional metadata.</div>
+        <span class="estatus">Any status</span>
+      </div>
+    </div>
+
+    <div class="split">
+      <div class="split-card" style="border-top:3px solid var(--accent4)">
+        <h3 style="margin-bottom:16px">Pattern matching on errors</h3>
+<pre><code class="language-csharp">UnionError error = result.Error.GetValueOrDefault();
+
+var message = error.Value switch
+{
+    UnionError.NotFound nf      =&gt; $"Missing: {nf.Resource}",
+    UnionError.Conflict c       =&gt; $"Conflict: {c.Reason}",
+    UnionError.Unauthorized     =&gt; "Authentication required",
+    UnionError.Forbidden f      =&gt; $"Forbidden: {f.Reason}",
+    UnionError.Validation v     =&gt; $"{v.Fields.Count} field errors",
+    UnionError.SystemFailure sf =&gt; sf.Ex.Message,
+    UnionError.Custom c         =&gt; $"{c.Code}: {c.Message}",
+    _                           =&gt; "Unknown error"
+};</code></pre>
+      </div>
+      <div class="split-card" style="border-top:3px solid var(--accent)">
+        <h3 style="margin-bottom:16px">Custom domain errors</h3>
+<pre><code class="language-csharp">// Application-specific error with any HTTP status + metadata
+return new UnionError.Custom(
+    Code:       "RATE_LIMIT_EXCEEDED",
+    Message:    "Too many requests, please retry later.",
+    StatusCode: 429,
+    Extensions: new Dictionary&lt;string, object&gt;
+    {
+        ["retryAfter"] = 30,
+        ["limit"]      = 100
+    });
+
+// Produces RFC 7807 ProblemDetails:
+// {
+//   "status": 429,
+//   "title": "RATE_LIMIT_EXCEEDED",
+//   "detail": "Too many requests...",
+//   "retryAfter": 30,
+//   "limit": 100
+// }</code></pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── Performance ───────────────────────────────────────────────────────── -->
+<section class="section" id="performance">
+  <div class="container">
+    <div class="section-title">
+      <div class="tag">Performance</div>
+      <h2>Fast by design</h2>
+      <p>Struct-based <code>Rail&lt;T&gt;</code> lives on the stack. Zero allocations on the success path. Measured with BenchmarkDotNet on .NET 8.</p>
+    </div>
+
+    <div class="bench-highlight">
+      <div class="bench-stat">
+        <div class="val">0.5</div>
+        <div class="unit">ns</div>
+        <div class="label">Create success</div>
+      </div>
+      <div class="bench-stat">
+        <div class="val">0</div>
+        <div class="unit">B allocated</div>
+        <div class="label">Success path</div>
+      </div>
+      <div class="bench-stat">
+        <div class="val">1.3</div>
+        <div class="unit">ns</div>
+        <div class="label">Map operation</div>
+      </div>
+      <div class="bench-stat">
+        <div class="val">48</div>
+        <div class="unit">ns</div>
+        <div class="label">MapAsync (ValueTask)</div>
+      </div>
+      <div class="bench-stat">
+        <div class="val">20</div>
+        <div class="unit">ns</div>
+        <div class="label">3-op chain</div>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Operation</th>
+            <th>Mean</th>
+            <th>Allocated</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Create success <code>Rail&lt;T&gt;</code></td><td class="yes">0.5 ns</td><td class="yes">0 B</td><td>Stack-only, zero allocation</td></tr>
+          <tr><td>Create failure <code>Rail&lt;T&gt;</code></td><td>2.8 ns</td><td>24 B</td><td>Error record allocation</td></tr>
+          <tr><td>Create Custom error</td><td>~3.5 ns</td><td>32 B</td><td>Record with optional extensions</td></tr>
+          <tr><td>Implicit conversion</td><td class="yes">&lt;1 ns</td><td class="yes">0 B</td><td>Zero overhead</td></tr>
+          <tr><td>IsSuccess pattern</td><td class="yes">0.6 ns</td><td class="yes">0 B</td><td>Inline check</td></tr>
+          <tr><td>Map (success)</td><td class="yes">1.3 ns</td><td class="yes">0 B</td><td>AggressiveInlining</td></tr>
+          <tr><td>Map (error)</td><td>3.6 ns</td><td>24 B</td><td>Short-circuit</td></tr>
+          <tr><td>Chain 3× Map</td><td class="yes">7.2 ns</td><td class="yes">0 B</td><td>Zero-allocation chain</td></tr>
+          <tr><td>Bind (success)</td><td>36 ns</td><td>40 B</td><td>Function call overhead</td></tr>
+          <tr><td>MapAsync</td><td>48 ns</td><td class="yes">0 B</td><td>ValueTask overhead only</td></tr>
+          <tr><td>Service chain (3 ops)</td><td>20 ns</td><td>120 B</td><td>Real-world scenario</td></tr>
+          <tr><td>Recover (matching)</td><td class="yes">~2 ns</td><td class="yes">0 B</td><td>Single <code>is</code> type check</td></tr>
+          <tr><td>Validation error</td><td>103 ns</td><td>464 B</td><td>Dictionary creation</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout green" style="margin-top:24px">
+      <strong>Why so fast?</strong> Struct-based <code>Rail&lt;T&gt;</code> lives on the stack · Zero allocations on success ·
+      <code>ValueTask</code> async (vs <code>Task</code>) · <code>AggressiveInlining</code> on hot paths ·
+      <code>configureProblem</code> callback is null-guarded · <code>Custom.Extensions</code> is <code>null</code> by default
+      <br/><br/>
+      Run yourself: <code>cd tests/UnionRailway.Benchmarks &amp;&amp; dotnet run -c Release</code>
+    </div>
+  </div>
+</section>
+
+<!-- ─── Comparison ────────────────────────────────────────────────────────── -->
+<section class="section" id="comparison">
+  <div class="container">
+    <div class="section-title">
+      <div class="tag">vs Other Libraries</div>
+      <h2>Why UnionRailway?</h2>
+      <p>Compared with LanguageExt, ErrorOr, OneOf, and FluentResults — the most popular C# result libraries.</p>
+    </div>
+
+    <div class="table-wrap" style="margin-bottom:48px">
+      <table>
+        <thead>
+          <tr>
+            <th>Feature</th>
+            <th>UnionRailway</th>
+            <th>LanguageExt</th>
+            <th>ErrorOr</th>
+            <th>OneOf</th>
+            <th>FluentResults</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Native union alignment (.NET 11)</td>
+            <td class="yes">✅</td><td class="no">❌</td><td class="no">❌</td><td class="no">❌</td><td class="no">❌</td>
+          </tr>
+          <tr>
+            <td>Semantic, closed error model</td>
+            <td class="yes">✅ Closed union</td><td class="na">String-based</td><td>Custom errors</td><td class="na">Any type</td><td class="na">String-based</td>
+          </tr>
+          <tr>
+            <td>ASP.NET Core (RFC 7807)</td>
+            <td class="yes">✅ Built-in</td><td class="no">❌ Manual</td><td class="no">❌ Manual</td><td class="no">❌ Manual</td><td class="no">❌ Manual</td>
+          </tr>
+          <tr>
+            <td>EF Core integration</td>
+            <td class="yes">✅ Built-in</td><td class="no">❌</td><td class="no">❌</td><td class="no">❌</td><td class="no">❌</td>
+          </tr>
+          <tr>
+            <td>HttpClient integration</td>
+            <td class="yes">✅ Built-in</td><td class="no">❌</td><td class="no">❌</td><td class="no">❌</td><td class="no">❌</td>
+          </tr>
+          <tr>
+            <td>OpenAPI / Swagger support</td>
+            <td class="yes">✅ Built-in</td><td class="no">❌</td><td class="no">❌</td><td class="no">❌</td><td class="no">❌</td>
+          </tr>
+          <tr>
+            <td>Railway operators</td>
+            <td class="yes">✅ Map/Bind/Tap/Recover</td><td class="yes">✅ Extensive</td><td>✅ Basic</td><td class="no">❌</td><td>✅ Basic</td>
+          </tr>
+          <tr>
+            <td>Async-first</td>
+            <td class="yes">✅ ValueTask</td><td>✅ Task</td><td>✅ Task</td><td class="no">❌</td><td>✅ Task</td>
+          </tr>
+          <tr>
+            <td>Pattern matching</td>
+            <td class="yes">✅ Native</td><td>✅ Custom</td><td>✅ Custom</td><td class="yes">✅ Native</td><td class="no">❌</td>
+          </tr>
+          <tr>
+            <td>Zero-alloc success path</td>
+            <td class="yes">✅ Struct</td><td class="no">❌ Class</td><td class="no">❌ Class</td><td class="no">❌ Class</td><td class="no">❌ Class</td>
+          </tr>
+          <tr>
+            <td>Learning curve</td>
+            <td class="yes">Low</td><td class="no">High (FP)</td><td>Low</td><td>Medium</td><td>Low</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3 style="margin-bottom:24px;text-align:center;font-size:1.4rem">The same endpoint — four libraries</h3>
+    <div class="vs-grid">
+      <div class="vs-card">
+        <div class="vs-card-header">
+          <span style="color:var(--accent3)">❌</span> LanguageExt
+        </div>
+<pre><code class="language-csharp">Fin&lt;User&gt; result = await svc.GetAsync(id);
+
+return result.Match(
+    Succ: user =&gt; Results.Ok(user),
+    Fail: error =&gt; error.Code switch
+    {
+        404 =&gt; Results.NotFound(),
+        401 =&gt; Results.Unauthorized(),
+        _   =&gt; Results.Problem(error.Message)
+    }
+);
+// Must know HTTP codes. No RFC 7807.</code></pre>
+      </div>
+      <div class="vs-card">
+        <div class="vs-card-header">
+          <span style="color:var(--accent3)">❌</span> ErrorOr
+        </div>
+<pre><code class="language-csharp">ErrorOr&lt;User&gt; result = await svc.GetAsync(id);
+
+return result.Match(
+    value  =&gt; Results.Ok(value),
+    errors =&gt; errors[0].Type switch
+    {
+        ErrorType.NotFound    =&gt; Results.NotFound(),
+        ErrorType.Unauthorized=&gt; Results.Unauthorized(),
+        _ =&gt; Results.Problem(errors[0].Description)
+    }
+);
+// Manual mapping every time.</code></pre>
+      </div>
+      <div class="vs-card">
+        <div class="vs-card-header">
+          <span style="color:var(--accent3)">❌</span> FluentResults
+        </div>
+<pre><code class="language-csharp">Result&lt;User&gt; result = await svc.GetAsync(id);
+
+if (result.IsFailed)
+{
+    var error = result.Errors.First();
+    return Results.Problem(error.Message);
+    // ❌ No type safety, no semantic mapping
+}
+
+return Results.Ok(result.Value);</code></pre>
+      </div>
+      <div class="vs-card" style="border-color:var(--accent2)">
+        <div class="vs-card-header">
+          <span style="color:var(--accent2)">✅</span> UnionRailway
+        </div>
+<pre><code class="language-csharp">Rail&lt;User&gt; result = await svc.GetAsync(id);
+
+return result.ToHttpResult();
+// ✅ RFC 7807 automatic
+// ✅ Correct status codes always
+// ✅ Type-safe error model
+// ✅ One line — everywhere</code></pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── Packages ──────────────────────────────────────────────────────────── -->
+<section class="section" id="packages">
+  <div class="container">
+    <div class="section-title">
+      <div class="tag">Packages</div>
+      <h2>Modular ecosystem</h2>
+      <p>Install only what you need. All packages follow semantic versioning and ship with XML documentation.</p>
+    </div>
+
+    <div class="pkg-grid">
+      <div class="pkg-card">
+        <div class="pkg-name">UnionRailway</div>
+        <div class="pkg-desc">Core <code>Rail&lt;T&gt;</code>, <code>UnionError</code>, <code>Union</code> helpers, railway operators (Map, Bind, Tap, Recover), and <code>UnionWrapper</code>.</div>
+        <div class="pkg-badges">
+          <a href="https://www.nuget.org/packages/UnionRailway" target="_blank" rel="noopener">
+            <img src="https://img.shields.io/nuget/v/UnionRailway.svg" alt="NuGet" />
+          </a>
+          <a href="https://www.nuget.org/packages/UnionRailway" target="_blank" rel="noopener">
+            <img src="https://img.shields.io/nuget/dt/UnionRailway?color=blue&label=downloads" alt="Downloads" />
+          </a>
+        </div>
+      </div>
+
+      <div class="pkg-card">
+        <div class="pkg-name">UnionRailway.AspNetCore</div>
+        <div class="pkg-desc">RFC 7807 Problem Details mapping, <code>RailEndpointFilter</code>, <code>UseRailwayExceptionHandler</code>, <code>AddRailway()</code>, and <code>IUnionErrorMapper</code>.</div>
+        <div class="pkg-badges">
+          <a href="https://www.nuget.org/packages/UnionRailway.AspNetCore" target="_blank" rel="noopener">
+            <img src="https://img.shields.io/nuget/v/UnionRailway.AspNetCore.svg" alt="NuGet" />
+          </a>
+          <a href="https://www.nuget.org/packages/UnionRailway.AspNetCore" target="_blank" rel="noopener">
+            <img src="https://img.shields.io/nuget/dt/UnionRailway.AspNetCore?color=blue&label=downloads" alt="Downloads" />
+          </a>
+        </div>
+      </div>
+
+      <div class="pkg-card">
+        <div class="pkg-name">UnionRailway.AspNetCore.OpenApi</div>
+        <div class="pkg-desc">Automatic Swagger/OpenAPI metadata for <code>Rail&lt;T&gt;</code> return types. Generates correct response schemas for each error variant.</div>
+        <div class="pkg-badges">
+          <a href="https://www.nuget.org/packages/UnionRailway.AspNetCore.OpenApi" target="_blank" rel="noopener">
+            <img src="https://img.shields.io/nuget/v/UnionRailway.AspNetCore.OpenApi.svg" alt="NuGet" />
+          </a>
+          <a href="https://www.nuget.org/packages/UnionRailway.AspNetCore.OpenApi" target="_blank" rel="noopener">
+            <img src="https://img.shields.io/nuget/dt/UnionRailway.AspNetCore.OpenApi?color=blue&label=downloads" alt="Downloads" />
+          </a>
+        </div>
+      </div>
+
+      <div class="pkg-card">
+        <div class="pkg-name">UnionRailway.EntityFrameworkCore</div>
+        <div class="pkg-desc">EF Core query extensions: <code>FirstOrDefaultAsUnionAsync</code> and <code>SaveChangesAsUnionAsync</code> — replace null checks and try-catch blocks.</div>
+        <div class="pkg-badges">
+          <a href="https://www.nuget.org/packages/UnionRailway.EntityFrameworkCore" target="_blank" rel="noopener">
+            <img src="https://img.shields.io/nuget/v/UnionRailway.EntityFrameworkCore.svg" alt="NuGet" />
+          </a>
+          <a href="https://www.nuget.org/packages/UnionRailway.EntityFrameworkCore" target="_blank" rel="noopener">
+            <img src="https://img.shields.io/nuget/dt/UnionRailway.EntityFrameworkCore?color=blue&label=downloads" alt="Downloads" />
+          </a>
+        </div>
+      </div>
+
+      <div class="pkg-card">
+        <div class="pkg-name">UnionRailway.HttpClient</div>
+        <div class="pkg-desc">HttpClient extensions that automatically convert HTTP status codes to typed <code>UnionError</code> variants. No manual status-code branching.</div>
+        <div class="pkg-badges">
+          <a href="https://www.nuget.org/packages/UnionRailway.HttpClient" target="_blank" rel="noopener">
+            <img src="https://img.shields.io/nuget/v/UnionRailway.HttpClient.svg" alt="NuGet" />
+          </a>
+          <a href="https://www.nuget.org/packages/UnionRailway.HttpClient" target="_blank" rel="noopener">
+            <img src="https://img.shields.io/nuget/dt/UnionRailway.HttpClient?color=blue&label=downloads" alt="Downloads" />
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout" style="margin-top:32px">
+      <strong>Install all packages at once:</strong><br/>
+      <code>dotnet add package UnionRailway</code><br/>
+      <code>dotnet add package UnionRailway.AspNetCore</code><br/>
+      <code>dotnet add package UnionRailway.EntityFrameworkCore</code><br/>
+      <code>dotnet add package UnionRailway.HttpClient</code>
+    </div>
+  </div>
+</section>
+
+<!-- ─── Future ────────────────────────────────────────────────────────────── -->
+<section class="section" id="future">
+  <div class="container">
+    <div class="section-title">
+      <div class="tag">.NET 11 Ready</div>
+      <h2>Future-proof from day one</h2>
+      <p>UnionRailway is designed for <strong>zero breaking changes</strong> when C# ships native union types.</p>
+    </div>
+    <div class="split">
+      <div class="split-card">
+        <h3 style="margin-bottom:16px">Today — .NET 8 polyfill</h3>
+<pre><code class="language-csharp">[Union]  // struct-based polyfill
+public readonly struct Rail&lt;T&gt;
+{
+    // ...
+}</code></pre>
+      </div>
+      <div class="split-card good">
+        <h3 style="margin-bottom:16px">Tomorrow — .NET 11 native</h3>
+<pre><code class="language-csharp">// Native C# union (planned)
+public union Rail&lt;T&gt;(T, UnionError);
+
+// Your code: no changes needed 🎉</code></pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── Footer ────────────────────────────────────────────────────────────── -->
+<footer>
+  <div class="container">
+    <p style="font-size:1.5rem;margin-bottom:12px">🚂</p>
+    <p><strong style="color:var(--heading)">UnionRailway</strong> — Type-safe error handling for C# that actually feels native.</p>
+    <p>MIT License · Built with ❤️ for the C# community</p>
+    <div class="footer-links">
+      <a href="https://github.com/salihcantekin/UnionRailway" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://www.nuget.org/packages/UnionRailway" target="_blank" rel="noopener">NuGet</a>
+      <a href="https://github.com/salihcantekin/UnionRailway/blob/main/CHANGELOG.md" target="_blank" rel="noopener">Changelog</a>
+      <a href="https://github.com/salihcantekin/UnionRailway/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">Contributing</a>
+      <a href="https://github.com/salihcantekin/UnionRailway/blob/main/docs/COMPARISON.md" target="_blank" rel="noopener">Comparison</a>
+      <a href="https://github.com/salihcantekin/UnionRailway/issues" target="_blank" rel="noopener">Issues</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // ── Tab switching ──────────────────────────────────────────────────────
+  function switchTab(event, name) {
+    const tabList = event.target.closest('.tab-list');
+    const tabs    = tabList.parentElement;
+    tabList.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    tabs.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+    event.target.classList.add('active');
+    document.getElementById('tab-' + name).classList.add('active');
+  }
+
+  // ── Copy install command ───────────────────────────────────────────────
+  function copyInstall(el) {
+    const text = 'dotnet add package UnionRailway';
+    navigator.clipboard.writeText(text).then(() => {
+      const hint = el.querySelector('.copy-hint');
+      const orig = hint.textContent;
+      hint.textContent = 'copied!';
+      hint.style.color = 'var(--accent2)';
+      setTimeout(() => { hint.textContent = orig; hint.style.color = ''; }, 1800);
+    });
+  }
+</script>
+
+</body>
+</html>

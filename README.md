@@ -2,11 +2,12 @@
 
 <div align="center">
 
-[![Build](https://img.shields.io/github/actions/workflow/status/salihcantekin/UnionRailway/ci.yml?branch=main&label=build)](https://github.com/salihcantekin/UnionRailway)
+[![Build](https://img.shields.io/github/actions/workflow/status/salihcantekin/UnionRailway/ci.yml?branch=main&label=build)](https://github.com/salihcantekin/UnionRailway/actions/workflows/ci.yml)
+[![Tests](https://img.shields.io/badge/tests-180%20passing-success)](https://github.com/salihcantekin/UnionRailway/actions/workflows/ci.yml)
 [![NuGet](https://img.shields.io/nuget/v/UnionRailway.svg)](https://www.nuget.org/packages/UnionRailway)
 [![Downloads](https://img.shields.io/nuget/dt/UnionRailway?label=downloads&color=blue)](https://www.nuget.org/packages/UnionRailway)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![.NET](https://img.shields.io/badge/.NET-8.0%20%7C%2011.0+-purple)](https://dotnet.microsoft.com)
+[![.NET](https://img.shields.io/badge/.NET-8.0%20%7C%2011.0-purple)](https://dotnet.microsoft.com)
 
 **Type-safe error handling for C# that actually feels native.**
 

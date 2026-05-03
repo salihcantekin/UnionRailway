@@ -32,6 +32,7 @@ jobs:
       matrix:
         framework:
           - net8.0
+          - net11.0
 
     steps:
       - name: Checkout
@@ -40,13 +41,28 @@ jobs:
       - name: Setup .NET SDK
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: |
+            8.0.x
+            11.0.x
 
-      - name: Restore test project
-        run: dotnet restore tests/UnionRailway.Tests/UnionRailway.Tests.csproj -p:TargetFramework=${{ matrix.framework }}
+      - name: Restore test projects
+        run: |
+          dotnet restore tests/UnionRailway.Tests/UnionRailway.Tests.csproj -p:TargetFramework=${{ matrix.framework }}
+          dotnet restore tests/UnionRailway.IntegrationTests/UnionRailway.IntegrationTests.csproj -p:TargetFramework=${{ matrix.framework }}
 
-      - name: Run tests
-        run: dotnet test tests/UnionRailway.Tests/UnionRailway.Tests.csproj --configuration ${{ env.CONFIGURATION }} --no-restore --framework ${{ matrix.framework }}
+      - name: Run unit tests
+        run: dotnet test tests/UnionRailway.Tests/UnionRailway.Tests.csproj --configuration ${{ env.CONFIGURATION }} --no-restore --framework ${{ matrix.framework }} --logger "trx;LogFileName=unit-test-results.trx"
+
+      - name: Run integration tests
+        run: dotnet test tests/UnionRailway.IntegrationTests/UnionRailway.IntegrationTests.csproj --configuration ${{ env.CONFIGURATION }} --no-restore --framework ${{ matrix.framework }} --logger "trx;LogFileName=integration-test-results.trx"
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-${{ matrix.framework }}
+          path: |
+            **/TestResults/*.trx
 
   pack-and-publish:
     name: Pack and publish NuGet packages
@@ -63,7 +79,9 @@ jobs:
       - name: Setup .NET SDK
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: |
+            8.0.x
+            11.0.x
 
       - name: Determine
         id: version

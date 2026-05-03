@@ -89,3 +89,6 @@ demo.MapStep14();
 demo.MapStep15();
 
 app.Run();
+
+public partial class Program { }
+

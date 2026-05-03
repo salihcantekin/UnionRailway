@@ -52,10 +52,12 @@ public static class Step05_Composition
         {
             // 💡 Bind chains a function that also returns Rail<T>.
             // If GetByIdAsync fails → Bind never runs → error propagates.
+            // Using BindObject with predicate style for cleaner code with object results.
             var result = (await svc.GetByIdAsync(id))
-                .Bind(p => p.Stock > 0
-                    ? Union.Ok(new { p.Id, p.Name, Status = "In Stock" })
-                    : Union.Fail<object>(new UnionError.Conflict("Out of stock")));
+                .BindObject(
+                    p => p.Stock > 0,
+                    p => new { p.Id, p.Name, Status = "In Stock" },
+                    p => new UnionError.Conflict("Out of stock"));
 
             return result.ToHttpResult();
         })
@@ -100,7 +102,7 @@ public static class Step05_Composition
         {
             var result = await svc.GetByIdAsync(id);
 
-            result
+            return result
                 .Map(p => new { p.Name, FormattedPrice = $"${p.Price:F2}" })
                 .ToHttpResult();
         })

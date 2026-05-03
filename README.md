@@ -212,6 +212,39 @@ var result = await GetUserAsync(id)
     .ToHttpResultAsync();
 ```
 
+#### **Working with Anonymous Types & Object Results**
+
+When returning `object` (e.g., anonymous types for DTOs), use `BindObject` to avoid generic type inference issues:
+
+```csharp
+// ✅ GOOD: Use BindObject for object/anonymous type results
+var result = await GetProductAsync(id)
+    .BindObject(
+        product => product.Stock > 0,
+        product => new { product.Id, product.Name, Status = "In Stock" },
+        product => new UnionError.Conflict("Out of stock"));
+
+// ✅ GOOD: Classic style also works
+var result = await GetProductAsync(id)
+    .BindObject(product => product.Stock > 0
+        ? Union.Ok(new { product.Id, product.Name })  // Union.Ok(object) overload
+        : Union.Fail<object>(new UnionError.Conflict("Out of stock")));
+
+// ❌ AVOID: Generic inference issues with Bind<T, object>
+var result = await GetProductAsync(id)
+    .Bind(product => Union.Ok(new { product.Id }));  // May cause type issues!
+```
+
+**Why `BindObject`?**
+- Prevents C# generic type inference issues with anonymous types
+- Predicate-style syntax is more readable for conditional logic
+- Explicitly signals that boxing to `object` will occur
+
+**When to use what:**
+- Use `Map` when transforming the success value (no error path)
+- Use `Bind` when chaining operations that return `Rail<T>` (with explicit types)
+- Use `BindObject` when returning `object` or anonymous types with conditional errors
+
 #### **Recovery & Side Effects**
 
 ```csharp
@@ -458,22 +491,192 @@ var result = await httpClient.GetFromJsonAsUnionAsync<UserDto>("/users/42");
 
 ---
 
-## 🔮 Future: .NET 11 Native Unions
+## 🔮 Future: Native C# Unions
 
-UnionRailway is designed for **zero breaking changes** when C# gets native unions:
+UnionRailway is architected for **seamless migration** to native C# unions when .NET 11 stable is released:
 
-**Today (.NET 8):**
+**Current Implementation (.NET 8 & 11 Preview):**
 ```csharp
-[Union]  // Struct-based polyfill
+[Union]  // High-performance struct-based implementation
 public readonly struct Rail<T> { /* ... */ }
+public readonly struct UnionError { /* ... */ }
 ```
 
-**Tomorrow (.NET 11):**
+**Future (.NET 11 Stable Release):**
 ```csharp
-public union Rail<T>(T, UnionError);  // Native!
+public union Rail<T>(T, UnionError);      // Native union types
+public union UnionError(...);             // Native discriminated union
 ```
 
-**Your code:** No changes needed! 🎉
+**Your Application Code:** Zero changes required! 🎉
+
+The library is designed to automatically switch to native unions when:
+- .NET 11 stable is released with finalized union support
+- The union feature is production-ready (expected in .NET 11 RTM)
+
+Until then, UnionRailway uses a highly optimized struct-based implementation that provides:
+- ✅ 0.5ns success path performance
+- ✅ Zero heap allocations
+- ✅ Full type safety
+- ✅ Compatible API surface with future native unions
+
+> **Note:** Union types are currently available in .NET 11 preview builds but are not yet enabled in this library until the feature stabilizes in the final release.
+
+**Target Frameworks:** .NET 8.0, .NET 11.0 (and future versions)
+
+---
+
+## 💡 Best Practices & Common Pitfalls
+
+### ✅ Do's
+
+**1. Use `BindObject` for Anonymous Types / `object` Results**
+```csharp
+// ✅ GOOD: Type-safe and clear
+.BindObject(
+    product => product.Stock > 0,
+    product => new { product.Id, product.Name, Status = "Available" },
+    product => new UnionError.Conflict("Out of stock"))
+```
+
+**2. Use `Union.Ok(object)` When Boxing to Object**
+```csharp
+// ✅ GOOD: Explicit object overload prevents inference issues
+Rail<object> result = Union.Ok(new { Id = 1, Name = "Test" });
+```
+
+**3. Explicit Generic Parameters When Mixing Types**
+```csharp
+// ✅ GOOD: Clear and type-safe
+.Bind<Product, OrderDto>(product => CreateOrderAsync(product))
+```
+
+**4. Use `ValueTask<Rail<T>>` for Async Methods**
+```csharp
+// ✅ GOOD: Zero allocation on cached results
+public async ValueTask<Rail<User>> GetUserAsync(int id)
+{
+    var user = await db.Users.FindAsync(id);
+    return user ?? new UnionError.NotFound("User");
+}
+```
+
+**5. Chain Operations for Readability**
+```csharp
+// ✅ GOOD: Railway-style composition
+var result = await GetProductAsync(id)
+    .BindAsync(product => ValidateStockAsync(product))
+    .MapAsync(product => new ProductDto(product))
+    .ToHttpResultAsync();
+```
+
+### ❌ Don'ts
+
+**1. Don't Use Generic `Bind` with Anonymous Types**
+```csharp
+// ❌ BAD: Generic type inference issues!
+.Bind(p => Union.Ok(new { p.Id, p.Name }))
+// May serialize as Rail wrapper instead of the object!
+
+// ✅ GOOD: Use BindObject instead
+.BindObject(p => new { p.Id, p.Name })
+```
+
+**2. Don't Mix Error Handling Styles**
+```csharp
+// ❌ BAD: Mixing exceptions with Railway
+public async ValueTask<Rail<User>> GetUserAsync(int id)
+{
+    try
+    {
+        var user = await db.Users.FindAsync(id);
+        return user ?? throw new NotFoundException(); // ❌ Don't throw!
+    }
+    catch (Exception ex)
+    {
+        return new UnionError.SystemFailure(ex);
+    }
+}
+
+// ✅ GOOD: Pure Railway style
+public async ValueTask<Rail<User>> GetUserAsync(int id)
+{
+    var user = await db.Users.FindAsync(id);
+    return user ?? new UnionError.NotFound("User");
+}
+```
+
+**3. Don't Ignore Error Cases**
+```csharp
+// ❌ BAD: Assuming success without checking
+var user = result.Unwrap(); // May throw UnwrapException!
+
+// ✅ GOOD: Check first or use Match
+if (result.IsSuccess(out var user, out var error))
+{
+    // use user
+}
+else
+{
+    // handle error
+}
+
+// OR use Match
+var message = result.Match(
+    onSuccess: user => $"Hello {user.Name}",
+    onError: error => $"Error: {error}");
+```
+
+**4. Don't Forget to `await` Async Chains**
+```csharp
+// ❌ BAD: Returning Task<Rail<T>> instead of Rail<T>
+public async Task<IResult> GetUser(int id, UserService svc)
+{
+    var result = svc.GetUserAsync(id); // Missing await!
+    return result.ToHttpResult(); // Won't compile!
+}
+
+// ✅ GOOD
+public async Task<IResult> GetUser(int id, UserService svc)
+{
+    var result = await svc.GetUserAsync(id);
+    return result.ToHttpResult();
+}
+
+// ✅ EVEN BETTER: Use ToHttpResultAsync
+public async Task<IResult> GetUser(int id, UserService svc)
+{
+    return await svc.GetUserAsync(id).ToHttpResultAsync();
+}
+```
+
+**5. Don't Over-Use `object` as Return Type**
+```csharp
+// ❌ BAD: Loses type safety
+public ValueTask<Rail<object>> GetUserAsync(int id)
+{
+    return db.Users.FirstOrDefaultAsUnionAsync("User", x => x.Id == id)
+        .MapAsync(user => (object)user); // Why box?
+}
+
+// ✅ GOOD: Keep strong typing as long as possible
+public ValueTask<Rail<User>> GetUserAsync(int id)
+{
+    return db.Users.FirstOrDefaultAsUnionAsync("User", x => x.Id == id);
+}
+
+// Use object only at HTTP boundary for DTOs:
+.MapAsync(user => new { user.Id, user.Name })
+.ToHttpResultAsync();
+```
+
+### 🎯 Performance Tips
+
+- ✅ Use `ValueTask<Rail<T>>` instead of `Task<Rail<T>>` for hot paths
+- ✅ Prefer `MapAsync` / `BindAsync` over synchronous versions when awaiting
+- ✅ Use `Rail<Unit>` for void-like operations (0 allocation)
+- ✅ Avoid boxing to `object` unless necessary (DTOs at HTTP layer)
+- ✅ Use `AggressiveInlining` extension methods for custom operators
 
 ---
 

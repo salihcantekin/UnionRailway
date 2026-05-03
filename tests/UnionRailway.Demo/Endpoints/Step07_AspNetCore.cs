@@ -25,7 +25,7 @@ public static class Step07_AspNetCore
         group.MapGet("/products/{id:int}", async (int id, ProductService svc) =>
         {
             // 💡 One line. That's it. Success → 200 OK, error → RFC 7807 Problem Details.
-            (await svc.GetByIdAsync(id)).ToHttpResult();
+            return (await svc.GetByIdAsync(id)).ToHttpResult();
         })
         .WithSummary("ToHttpResult — one-line HTTP bridge")
         .WithDescription(
@@ -59,7 +59,7 @@ public static class Step07_AspNetCore
         group.MapGet("/products/{id:int}/async", async (int id, ProductService svc) =>
         {
             // 💡 ToHttpResultAsync awaits the ValueTask directly — no intermediate variable
-            await svc.GetByIdAsync(id).ToHttpResultAsync();
+            return await svc.GetByIdAsync(id).ToHttpResultAsync();
         })
         .WithSummary("ToHttpResultAsync — awaitable extension on ValueTask<Rail<T>>")
         .WithDescription("Awaits ValueTask<Rail<T>> and converts to IResult in one call.");

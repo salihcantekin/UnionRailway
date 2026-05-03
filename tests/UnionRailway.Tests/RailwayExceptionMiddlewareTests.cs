@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
@@ -31,6 +32,9 @@ public sealed class RailwayExceptionMiddlewareTests : IAsyncDisposable
                     services.AddLogging();
                     services.AddRailway();
                     configureServices?.Invoke(services);
+
+                    // Workaround for .NET 11 TestHost PipeWriter.UnflushedBytes bug
+                    services.AddTransient<IStartupFilter, TestHostBugWorkaroundStartupFilter>();
                 });
                 web.Configure(app =>
                 {

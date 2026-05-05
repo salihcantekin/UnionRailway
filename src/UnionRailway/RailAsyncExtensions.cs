@@ -195,4 +195,40 @@ public static class RailAsyncExtensions
         Func<TError, ValueTask<T>> recovery)
         where TError : class =>
         await (await resultTask).RecoverAsync<T, TError>(recovery);
+
+    // ── Ensure ──────────────────────────────────────────────────────────────
+
+    /// <summary>Validates the success value in an asynchronous rail against a predicate.</summary>
+    public static async Task<Rail<T>> EnsureAsync<T>(
+        this Task<Rail<T>> resultTask,
+        Func<T, bool> predicate,
+        Func<T, UnionError> errorFactory)
+    {
+        ArgumentNullException.ThrowIfNull(resultTask);
+        return (await resultTask).Ensure(predicate, errorFactory);
+    }
+
+    /// <summary>Validates the success value in an asynchronous rail against a predicate.</summary>
+    public static async ValueTask<Rail<T>> EnsureAsync<T>(
+        this ValueTask<Rail<T>> resultTask,
+        Func<T, bool> predicate,
+        Func<T, UnionError> errorFactory) =>
+        (await resultTask).Ensure(predicate, errorFactory);
+
+    /// <summary>Validates the success value in an asynchronous rail against an async predicate.</summary>
+    public static async Task<Rail<T>> EnsureAsync<T>(
+        this Task<Rail<T>> resultTask,
+        Func<T, ValueTask<bool>> predicate,
+        Func<T, UnionError> errorFactory)
+    {
+        ArgumentNullException.ThrowIfNull(resultTask);
+        return await (await resultTask).EnsureAsync(predicate, errorFactory);
+    }
+
+    /// <summary>Validates the success value in an asynchronous rail against an async predicate.</summary>
+    public static async ValueTask<Rail<T>> EnsureAsync<T>(
+        this ValueTask<Rail<T>> resultTask,
+        Func<T, ValueTask<bool>> predicate,
+        Func<T, UnionError> errorFactory) =>
+        await (await resultTask).EnsureAsync(predicate, errorFactory);
 }

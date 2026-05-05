@@ -330,6 +330,51 @@ var result = await GetUserAsync(id)
     .ToHttpResultAsync();
 ```
 
+### **Ensure — Guard Values in the Chain**
+
+`Ensure` validates the success value against a predicate. If it fails,
+the rail short-circuits to an error — preventing null or invalid values
+from reaching downstream `Bind`/`Map` calls:
+
+```csharp
+var result = await GetTransactionAsync(id)
+    .EnsureAsync(
+        t => t is not null,
+        _ => new UnionError.NotFound("Transaction"))
+    .BindAsync(async t =>
+    {
+        t.Items.ForEach(i => i.Issued = true);
+        return await SaveAsync(t);
+    });
+// If GetTransactionAsync returns Ok(null), Ensure converts it to NotFound
+// and BindAsync is never called.
+```
+
+### **ToFail — Shorthand Error Creation**
+
+Create failed rails directly from any `UnionError`:
+
+```csharp
+// Before:
+return Union.Fail<Order>(new UnionError.Conflict("duplicate"));
+
+// After:
+UnionError error = new UnionError.Conflict("duplicate");
+return error.ToFail<Order>();
+```
+
+### **SystemFailure — Message Constructor**
+
+Create system failures without wrapping in an exception:
+
+```csharp
+// Message only (wraps in InvalidOperationException internally):
+var sf = new UnionError.SystemFailure("Database connection lost");
+
+// Message with inner exception:
+var sf = new UnionError.SystemFailure("Operation failed", innerException);
+```
+
 ### **ASP.NET Core Integration**
 
 ```csharp

@@ -141,4 +141,60 @@ public sealed class UnionErrorTests
         Assert.IsType<UnionError.Validation>(validation.Value);
         Assert.IsType<UnionError.SystemFailure>(failure.Value);
     }
+
+    // ── SystemFailure(string) constructor ────────────────────────────
+
+    [Fact]
+    public void SystemFailure_WithMessage_WrapsInInvalidOperationException()
+    {
+        var sf = new UnionError.SystemFailure("something went wrong");
+
+        Assert.IsType<InvalidOperationException>(sf.Ex);
+        Assert.Equal("something went wrong", sf.Ex.Message);
+    }
+
+    [Fact]
+    public void SystemFailure_WithMessageAndInnerException_UsesProvidedException()
+    {
+        var inner = new TimeoutException("timed out");
+        var sf = new UnionError.SystemFailure("operation failed", inner);
+
+        Assert.Same(inner, sf.Ex);
+    }
+
+    // ── ToFail<T>() extension ───────────────────────────────────────
+
+    [Fact]
+    public void ToFail_CreatesFailedRail()
+    {
+        UnionError error = new UnionError.NotFound("Order");
+
+        Rail<int> rail = error.ToFail<int>();
+
+        Assert.True(rail.IsError);
+        Assert.IsType<UnionError.NotFound>(rail.Error.GetValueOrDefault().Value);
+    }
+
+    [Fact]
+    public void ToFail_Conflict_CreatesFailedRail()
+    {
+        UnionError error = new UnionError.Conflict("duplicate");
+
+        Rail<string> rail = error.ToFail<string>();
+
+        Assert.True(rail.IsError);
+        Assert.IsType<UnionError.Conflict>(rail.Error.GetValueOrDefault().Value);
+    }
+
+    [Fact]
+    public void ToFail_SystemFailureWithMessage_CreatesFailedRail()
+    {
+        UnionError error = new UnionError.SystemFailure("boom");
+
+        Rail<double> rail = error.ToFail<double>();
+
+        Assert.True(rail.IsError);
+        var sf = Assert.IsType<UnionError.SystemFailure>(rail.Error.GetValueOrDefault().Value);
+        Assert.Equal("boom", sf.Ex.Message);
+    }
 }

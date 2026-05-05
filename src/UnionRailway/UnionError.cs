@@ -175,7 +175,14 @@ public readonly struct UnionError : IEquatable<UnionError>, System.Runtime.Compi
 
     /// <summary>An unexpected system-level failure occurred.</summary>
     /// <param name="Ex">The originating exception.</param>
-    public sealed record SystemFailure(Exception Ex);
+    public sealed record SystemFailure(Exception Ex)
+    {
+        /// <summary>Creates a system failure from a human-readable message with an optional exception.</summary>
+        /// <param name="message">A human-readable description of the failure.</param>
+        /// <param name="innerException">An optional originating exception.</param>
+        public SystemFailure(string message, Exception? innerException = null)
+            : this(innerException ?? new InvalidOperationException(message)) { }
+    }
 
     /// <summary>
     /// A domain-specific error that does not fit into the predefined categories.

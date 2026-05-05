@@ -210,4 +210,54 @@ public static class UnionExtensions
 
         return result;
     }
+
+    /// <summary>
+    /// Validates the success value against a <paramref name="predicate"/>.
+    /// If the predicate returns <c>false</c>, the rail is converted to a failure
+    /// using <paramref name="errorFactory"/>. Error rails pass through unchanged.
+    /// </summary>
+    /// <example>
+    /// <code>
+    /// var rail = await GetUserAsync(id)
+    ///     .EnsureAsync(
+    ///         u => u.IsActive,
+    ///         u => new UnionError.Forbidden($"User {u.Id} is deactivated."));
+    /// </code>
+    /// </example>
+    public static Rail<T> Ensure<T>(
+        this Rail<T> result,
+        Func<T, bool> predicate,
+        Func<T, UnionError> errorFactory)
+    {
+        ArgumentNullException.ThrowIfNull(predicate);
+        ArgumentNullException.ThrowIfNull(errorFactory);
+
+        if (result.TryGetValue(out var value) && !predicate(value))
+        {
+            return errorFactory(value);
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Validates the success value against an asynchronous <paramref name="predicate"/>.
+    /// If the predicate returns <c>false</c>, the rail is converted to a failure
+    /// using <paramref name="errorFactory"/>. Error rails pass through unchanged.
+    /// </summary>
+    public static async ValueTask<Rail<T>> EnsureAsync<T>(
+        this Rail<T> result,
+        Func<T, ValueTask<bool>> predicate,
+        Func<T, UnionError> errorFactory)
+    {
+        ArgumentNullException.ThrowIfNull(predicate);
+        ArgumentNullException.ThrowIfNull(errorFactory);
+
+        if (result.TryGetValue(out var value) && !await predicate(value))
+        {
+            return errorFactory(value);
+        }
+
+        return result;
+    }
 }

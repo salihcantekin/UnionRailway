@@ -39,6 +39,9 @@ await AddNewProduct();
 await CreateProductWithBadInput();
 await DuplicateSkuConflict();
 await LookupBySku();
+await EnsureNullSafetyDemo();
+await ToFailShorthandDemo();
+await SystemFailureWithMessageDemo();
 
 Banner("All scenarios completed");
 
@@ -287,6 +290,80 @@ async Task LookupBySku()
 
         Console.WriteLine($"   {line}");
     }
+}
+
+// ── Ensure — null-safety guard in a chain ─────────────────────────────────
+
+async Task EnsureNullSafetyDemo()
+{
+    Heading("Ensure: guard against null success values  [Ensure + BindAsync chain]");
+
+    // Simulate a method that returns a successful Rail with null
+    Task<Rail<Product?>> nullProductTask = Task.FromResult(Union.Ok<Product?>(null));
+
+    var bindCalled = false;
+
+    Rail<Product?> result = await nullProductTask
+        .EnsureAsync(
+            p => p is not null,
+            _ => new UnionError.NotFound("Product"))
+        .BindAsync(p =>
+        {
+            bindCalled = true;
+            return Task.FromResult(Union.Ok(p));
+        });
+
+    if (result.IsError)
+    {
+        OK("Ensure correctly short-circuited the chain — Bind was NOT called");
+        Info($"   Bind invoked: {bindCalled}");
+        Info($"   Error: {result.Error.GetValueOrDefault().Value}");
+    }
+    else
+    {
+        Fail("Expected Ensure to reject null but chain continued");
+    }
+}
+
+// ── ToFail<T>() shorthand ─────────────────────────────────────────────────
+
+Task ToFailShorthandDemo()
+{
+    Heading("ToFail: shorthand error creation  [UnionError.ToFail<T>()]");
+
+    // Old way
+    Rail<int> oldWay = Union.Fail<int>(new UnionError.Conflict("duplicate"));
+
+    // New way — cleaner (assign to UnionError, then ToFail)
+    UnionError conflictError = new UnionError.Conflict("duplicate");
+    Rail<int> newWay = conflictError.ToFail<int>();
+
+    OK($"Old way — IsError: {oldWay.IsError}");
+    OK($"New way — IsError: {newWay.IsError}  (same result, less boilerplate)");
+
+    return Task.CompletedTask;
+}
+
+// ── SystemFailure with message ────────────────────────────────────────────
+
+Task SystemFailureWithMessageDemo()
+{
+    Heading("SystemFailure: message-only constructor  [no Exception required]");
+
+    // Old way — requires wrapping in an exception
+    var oldWay = new UnionError.SystemFailure(new InvalidOperationException("disk full"));
+
+    // New way — message directly
+    var newWay = new UnionError.SystemFailure("disk full");
+
+    OK($"Old way — Ex.Message: \"{oldWay.Ex.Message}\"");
+    OK($"New way — Ex.Message: \"{newWay.Ex.Message}\"  (same outcome, cleaner API)");
+
+    // With inner exception
+    var withInner = new UnionError.SystemFailure("operation failed", new TimeoutException("timed out"));
+    OK($"With inner — Ex: {withInner.Ex.GetType().Name}: \"{withInner.Ex.Message}\"");
+
+    return Task.CompletedTask;
 }
 
 // ── Console helpers ───────────────────────────────────────────────────────────

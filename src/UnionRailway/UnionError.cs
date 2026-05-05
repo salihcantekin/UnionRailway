@@ -3,7 +3,7 @@ namespace UnionRailway;
 /// <summary>
 /// A closed union of every error category an operation can produce.
 /// The shape follows the custom union pattern so it can migrate naturally to
-/// native C# union support.
+/// native C# union support when .NET 11 stable is released.
 /// <code>
 /// UnionError error = new UnionError.NotFound("User");
 ///
@@ -19,7 +19,11 @@ namespace UnionRailway;
 /// };
 /// </code>
 /// </summary>
-#if NET11_0_OR_GREATER
+/// <remarks>
+/// Will automatically switch to native union types when .NET 11 stable is released.
+/// Currently uses a struct-based implementation for compatibility and performance.
+/// </remarks>
+#if ENABLE_NATIVE_UNIONS
 public union UnionError(
     UnionError.NotFound,
     UnionError.Conflict,

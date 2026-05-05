@@ -1,28 +1,38 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <ItemGroup>
-    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
-    <None Include="..\..\assets\icon.png" Pack="true" PackagePath="\" />
-  </ItemGroup>
+	<ItemGroup>
+		<None Include="..\..\README.md" Pack="true" PackagePath="\" />
+		<None Include="..\..\assets\icon.png" Pack="true" PackagePath="\" />
+	</ItemGroup>
 
-  <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <LangVersion>preview</LangVersion>
-    <Nullable>enable</Nullable>
-    <IsPackable>true</IsPackable>
-    <PackageId>UnionRailway</PackageId>
-    <Title>UnionRailway</Title>
-    <Description>Native-union-ready railway programming for C# with semantic errors and first-class ASP.NET Core, HttpClient, and EF Core integration.</Description>
-    <Authors>Salih Cantekin</Authors>
-    <PackageTags>railway-oriented-programming;rop;union;discriminated-union;result;aspnetcore;efcore;httpclient</PackageTags>
-    <PackageReadmeFile>README.md</PackageReadmeFile>
-    <PackageIcon>icon.png</PackageIcon>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageProjectUrl>https://github.com/salihcantekin/UnionRailway</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/salihcantekin/UnionRailway</RepositoryUrl>
-    <RepositoryType>git</RepositoryType>
-    <PublishRepositoryUrl>true</PublishRepositoryUrl>
-  </PropertyGroup>
+	<PropertyGroup>
+		<TargetFrameworks>net8.0;net11.0</TargetFrameworks>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<LangVersion>preview</LangVersion>
+		<Nullable>enable</Nullable>
+		<IsPackable>true</IsPackable>
+		<PackageId>UnionRailway</PackageId>
+		<Title>UnionRailway</Title>
+		<Description>Native-union-ready railway programming for C# with semantic errors and first-class ASP.NET Core, HttpClient, and EF Core integration.</Description>
+		<Authors>Salih Cantekin</Authors>
+		<PackageTags>railway-oriented-programming;rop;union;discriminated-union;result;aspnetcore;efcore;httpclient</PackageTags>
+		<PackageReadmeFile>README.md</PackageReadmeFile>
+		<PackageIcon>icon.png</PackageIcon>
+		<PackageLicenseExpression>MIT</PackageLicenseExpression>
+		<PackageProjectUrl>https://github.com/salihcantekin/UnionRailway</PackageProjectUrl>
+		<RepositoryUrl>https://github.com/salihcantekin/UnionRailway</RepositoryUrl>
+		<RepositoryType>git</RepositoryType>
+		<PublishRepositoryUrl>true</PublishRepositoryUrl>
+	</PropertyGroup>
+
+	<!--Native unions will be automatically enabled when .NET 11 stable is released.
+		 Union types are currently in preview and will be finalized in .NET 11 RTM.
+		 For now, we use a high-performance struct-based implementation that works across all frameworks.
+		 To enable native unions when .NET 11 stable is released, uncomment the PropertyGroup below:-->
+
+	<!--<PropertyGroup Condition="'$(TargetFramework)' == 'net11.0'">
+		<DefineConstants>$(DefineConstants);ENABLE_NATIVE_UNIONS</DefineConstants>
+	</PropertyGroup>-->
+
 
 </Project>

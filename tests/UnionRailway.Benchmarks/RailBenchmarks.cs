@@ -6,28 +6,19 @@ namespace UnionRailway.Benchmarks;
 [SimpleJob(warmupCount: 3, iterationCount: 10)]
 public class RailBenchmarks
 {
-    private Rail<int> _consumedResult;
-    private int _consumedValue;
+    private Rail<int> consumedResult;
+    private int consumedValue;
 
     // ── Creation Benchmarks ────────────────────────────────────────────
 
     [Benchmark(Description = "Create success Rail<int>")]
-    public void CreateSuccess()
-    {
-        _consumedResult = Union.Ok(42);
-    }
+    public void CreateSuccess() => consumedResult = Union.Ok(42);
 
     [Benchmark(Description = "Create failure Rail<int>")]
-    public void CreateFailure()
-    {
-        _consumedResult = Union.Fail<int>(new UnionError.NotFound("User"));
-    }
+    public void CreateFailure() => consumedResult = Union.Fail<int>(new UnionError.NotFound("User"));
 
     [Benchmark(Description = "Create via implicit conversion")]
-    public Rail<string> CreateImplicit()
-    {
-        return "hello";
-    }
+    public Rail<string> CreateImplicit() => "hello";
 
     // ── Pattern Matching Benchmarks ────────────────────────────────────
 
@@ -37,11 +28,11 @@ public class RailBenchmarks
         var result = Union.Ok(42);
         if (result.IsSuccess(out var value, out var error))
         {
-            _consumedValue = value;
+            consumedValue = value;
         }
         else
         {
-            _consumedValue = 0;
+            consumedValue = 0;
         }
     }
 
@@ -49,7 +40,7 @@ public class RailBenchmarks
     public void MatchPattern()
     {
         var result = Union.Ok(42);
-        _consumedValue = result.Match(
+        consumedValue = result.Match(
             onOk: value => value,
             onError: _ => 0);
     }
@@ -60,34 +51,28 @@ public class RailBenchmarks
         var result = Union.Ok(42);
         if (result.TryGetValue(out var value))
         {
-            _consumedValue = value;
+            consumedValue = value;
         }
         else
         {
-            _consumedValue = 0;
+            consumedValue = 0;
         }
     }
 
     // ── Railway Operations Benchmarks ──────────────────────────────────
 
     [Benchmark(Description = "Map operation (success path)")]
-    public void MapSuccess()
-    {
-        _consumedResult = Union.Ok(5).Map(x => x * 2);
-    }
+    public void MapSuccess() => consumedResult = Union.Ok(5).Map(x => x * 2);
 
     [Benchmark(Description = "Map operation (error path)")]
     public void MapError()
     {
         var result = Union.Fail<int>(new UnionError.NotFound("User"));
-        _consumedResult = result.Map(x => x * 2);
+        consumedResult = result.Map(x => x * 2);
     }
 
     [Benchmark(Description = "Bind operation (success path)")]
-    public Rail<string> BindSuccess()
-    {
-        return Union.Ok(42).Bind(x => Union.Ok($"value={x}"));
-    }
+    public Rail<string> BindSuccess() => Union.Ok(42).Bind(x => Union.Ok($"value={x}"));
 
     [Benchmark(Description = "Bind operation (error path)")]
     public Rail<string> BindError()
@@ -117,24 +102,15 @@ public class RailBenchmarks
     // ── Async Operations Benchmarks ────────────────────────────────────
 
     [Benchmark(Description = "MapAsync operation")]
-    public async ValueTask<Rail<int>> MapAsyncSuccess()
-    {
-        return await Union.Ok(5).MapAsync(x => ValueTask.FromResult(x * 2));
-    }
+    public async ValueTask<Rail<int>> MapAsyncSuccess() => await Union.Ok(5).MapAsync(x => ValueTask.FromResult(x * 2));
 
     [Benchmark(Description = "BindAsync operation")]
-    public async ValueTask<Rail<string>> BindAsyncSuccess()
-    {
-        return await Union.Ok(42).BindAsync(x => ValueTask.FromResult(Union.Ok($"value={x}")));
-    }
+    public async ValueTask<Rail<string>> BindAsyncSuccess() => await Union.Ok(42).BindAsync(x => ValueTask.FromResult(Union.Ok($"value={x}")));
 
     // ── UnionError Benchmarks ──────────────────────────────────────────
 
     [Benchmark(Description = "Create NotFound error")]
-    public UnionError CreateNotFoundError()
-    {
-        return new UnionError.NotFound("User");
-    }
+    public UnionError CreateNotFoundError() => new UnionError.NotFound("User");
 
     [Benchmark(Description = "Create Validation error")]
     public UnionError CreateValidationError()
@@ -192,10 +168,7 @@ public class RailBenchmarks
     // ── Custom Error & Recover Benchmarks ──────────────────────────────
 
     [Benchmark(Description = "Create Custom error")]
-    public UnionError CreateCustomError()
-    {
-        return new UnionError.Custom("RATE_LIMIT", "Too many requests", StatusCode: 429);
-    }
+    public UnionError CreateCustomError() => new UnionError.Custom("RATE_LIMIT", "Too many requests", StatusCode: 429);
 
     [Benchmark(Description = "Create Custom error with Extensions")]
     public UnionError CreateCustomErrorWithExtensions()

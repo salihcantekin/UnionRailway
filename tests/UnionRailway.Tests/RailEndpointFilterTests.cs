@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using System.Net;
@@ -32,6 +33,9 @@ public sealed class RailEndpointFilterTests : IAsyncDisposable
                     services.AddRouting();
                     services.AddRailway();
                     configureServices?.Invoke(services);
+
+                    // Workaround for .NET 11 TestHost PipeWriter.UnflushedBytes bug
+                    services.AddTransient<IStartupFilter, TestHostBugWorkaroundStartupFilter>();
                 });
                 web.Configure(app =>
                 {

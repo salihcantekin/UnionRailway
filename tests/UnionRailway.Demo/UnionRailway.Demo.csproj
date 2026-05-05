@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+	<TargetFrameworks>net8.0;net11.0</TargetFrameworks>
+	<LangVersion>preview</LangVersion>
+	<ImplicitUsings>enable</ImplicitUsings>
+	<RootNamespace>UnionRailway.Demo</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+	<ProjectReference Include="..\..\src\UnionRailway\UnionRailway.csproj" />
+	<ProjectReference Include="..\..\src\UnionRailway.AspNetCore\UnionRailway.AspNetCore.csproj" />
+	<ProjectReference Include="..\..\src\UnionRailway.AspNetCore.OpenApi\UnionRailway.AspNetCore.OpenApi.csproj" />
+	<ProjectReference Include="..\..\src\UnionRailway.EntityFrameworkCore\UnionRailway.EntityFrameworkCore.csproj" />
+	<ProjectReference Include="..\..\src\UnionRailway.HttpClient\UnionRailway.HttpClient.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+	<PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="8.0.0" />
+	<PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="9.0.4" />
+	<PackageReference Include="Swashbuckle.AspNetCore" Version="6.9.0" />
+  </ItemGroup>
+
+</Project>

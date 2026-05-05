@@ -9,6 +9,33 @@ public static class Union
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Rail<T> Ok<T>(T value) => value;
 
+    /// <summary>
+    /// Creates a successful rail carrying a <paramref name="value"/> boxed as <see cref="object"/>.
+    /// This overload prevents generic type inference issues when working with anonymous types.
+    /// </summary>
+    /// <param name="value">The value to wrap, typically an anonymous type or pre-boxed object.</param>
+    /// <returns>A <see cref="Rail{T}"/> where T is <see cref="object"/>.</returns>
+    /// <remarks>
+    /// <para><b>When to use this:</b></para>
+    /// <list type="bullet">
+    /// <item>Returning anonymous types (DTOs) from <see cref="UnionExtensions.BindObject{T}(Rail{T}, Func{T, Rail{object}})"/></item>
+    /// <item>Working with heterogeneous collections of Rail results</item>
+    /// <item>Explicit boxing for HTTP response serialization</item>
+    /// </list>
+    /// <para><b>Example:</b></para>
+    /// <code>
+    /// Rail&lt;object&gt; result = Union.Ok(new { Id = 1, Name = "Product" });
+    /// // No generic type inference issues, explicit Rail&lt;object&gt; return type
+    /// </code>
+    /// <para><b>Performance Note:</b></para>
+    /// <para>
+    /// This method boxes the value. Prefer strongly-typed <see cref="Ok{T}(T)"/> when possible 
+    /// and only use this at HTTP/serialization boundaries for DTOs.
+    /// </para>
+    /// </remarks>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Rail<object> Ok(object value) => value;
+
     /// <summary>Creates a failed rail carrying <paramref name="error"/>.</summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Rail<T> Fail<T>(UnionError error) => error;

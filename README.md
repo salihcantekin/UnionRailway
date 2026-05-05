@@ -409,6 +409,22 @@ var sf = new UnionError.SystemFailure("Database connection lost");
 var sf = new UnionError.SystemFailure("Operation failed", innerException);
 ```
 
+### **Switch — Void Match for Side Effects**
+
+`Switch` is the void counterpart of `Match` — execute side effects on both
+success and error branches without needing a return value:
+
+```csharp
+result.Switch(
+    onOk: user => logger.LogInformation("Found user {Id}", user.Id),
+    onError: err => logger.LogWarning("Failed: {Error}", err));
+
+// Async version:
+await resultTask.SwitchAsync(
+    onOk: user => { logger.LogInformation("Found user {Id}", user.Id); return Task.CompletedTask; },
+    onError: err => { logger.LogWarning("Failed: {Error}", err); return Task.CompletedTask; });
+```
+
 ### **ASP.NET Core Integration**
 
 ```csharp

@@ -76,6 +76,58 @@ public static class RailAsyncExtensions
         throw new UnwrapException(null);
     }
 
+    // ── SwitchAsync ─────────────────────────────────────────────────────────
+
+    /// <summary>Executes <paramref name="onOk"/> or <paramref name="onError"/> as a void side effect on an async rail.</summary>
+    public static async Task SwitchAsync<T>(
+        this Task<Rail<T>> resultTask,
+        Action<T> onOk,
+        Action<UnionError> onError)
+    {
+        ArgumentNullException.ThrowIfNull(resultTask);
+        (await resultTask).Switch(onOk, onError);
+    }
+
+    /// <summary>Executes <paramref name="onOk"/> or <paramref name="onError"/> as a void side effect on an async rail.</summary>
+    public static async ValueTask SwitchAsync<T>(
+        this ValueTask<Rail<T>> resultTask,
+        Action<T> onOk,
+        Action<UnionError> onError) =>
+        (await resultTask).Switch(onOk, onError);
+
+    /// <summary>Executes async <paramref name="onOk"/> or <paramref name="onError"/> as a void side effect on an async rail.</summary>
+    public static async Task SwitchAsync<T>(
+        this Task<Rail<T>> resultTask,
+        Func<T, Task> onOk,
+        Func<UnionError, Task> onError)
+    {
+        ArgumentNullException.ThrowIfNull(resultTask);
+        ArgumentNullException.ThrowIfNull(onOk);
+        ArgumentNullException.ThrowIfNull(onError);
+
+        var result = await resultTask;
+        if (result.TryGetValue(out var value))
+        {
+            await onOk(value);
+            return;
+        }
+
+        if (result.TryGetError(out var error))
+        {
+            await onError(error.GetValueOrDefault());
+            return;
+        }
+
+        throw new UnwrapException(null);
+    }
+
+    /// <summary>Executes async <paramref name="onOk"/> or <paramref name="onError"/> as a void side effect on an async rail.</summary>
+    public static async ValueTask SwitchAsync<T>(
+        this ValueTask<Rail<T>> resultTask,
+        Func<T, ValueTask> onOk,
+        Func<UnionError, ValueTask> onError) =>
+        await (await resultTask).SwitchAsync(onOk, onError);
+
     public static async Task<Rail<TOut>> MapAsync<T, TOut>(this Task<Rail<T>> resultTask, Func<T, TOut> mapper)
     {
         ArgumentNullException.ThrowIfNull(resultTask);

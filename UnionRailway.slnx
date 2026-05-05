@@ -8,8 +8,12 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/UnionRailway.Benchmarks/UnionRailway.Benchmarks.csproj" />
-    <Project Path="tests/UnionRailway.Demo/UnionRailway.Demo.csproj" />
-    <Project Path="tests/UnionRailway.IntegrationTests/UnionRailway.IntegrationTests.csproj" />
+    <Project Path="tests/UnionRailway.Demo/UnionRailway.Demo.csproj">
+      <Build Solution="Release|*" Project="false" />
+    </Project>
+    <Project Path="tests/UnionRailway.IntegrationTests/UnionRailway.IntegrationTests.csproj">
+      <Build Solution="Release|*" Project="false" />
+    </Project>
     <Project Path="tests/UnionRailway.Playground/UnionRailway.Playground.csproj" />
     <Project Path="tests/UnionRailway.Tests/UnionRailway.Tests.csproj" />
   </Folder>

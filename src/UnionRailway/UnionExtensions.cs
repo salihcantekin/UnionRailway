@@ -67,6 +67,68 @@ public static class UnionExtensions
         throw new UnwrapException(null);
     }
 
+    /// <summary>
+    /// Executes <paramref name="onOk"/> on success or <paramref name="onError"/> on failure
+    /// as a side effect without returning a value. This is the void counterpart of
+    /// <see cref="Match{T,TResult}"/>.
+    /// </summary>
+    /// <example>
+    /// <code>
+    /// result.Switch(
+    ///     onOk: user => logger.LogInformation("Found user {Id}", user.Id),
+    ///     onError: err => logger.LogWarning("Failed: {Error}", err));
+    /// </code>
+    /// </example>
+    public static void Switch<T>(
+        this Rail<T> result,
+        Action<T> onOk,
+        Action<UnionError> onError)
+    {
+        ArgumentNullException.ThrowIfNull(onOk);
+        ArgumentNullException.ThrowIfNull(onError);
+
+        if (result.TryGetValue(out var value))
+        {
+            onOk(value);
+            return;
+        }
+
+        if (result.TryGetError(out var error))
+        {
+            onError(error.GetValueOrDefault());
+            return;
+        }
+
+        throw new UnwrapException(null);
+    }
+
+    /// <summary>
+    /// Asynchronous void counterpart of <see cref="Match{T,TResult}"/>.
+    /// Executes <paramref name="onOk"/> on success or <paramref name="onError"/> on failure.
+    /// </summary>
+    public static async ValueTask SwitchAsync<T>(
+        this Rail<T> result,
+        Func<T, ValueTask> onOk,
+        Func<UnionError, ValueTask> onError)
+    {
+        ArgumentNullException.ThrowIfNull(onOk);
+        ArgumentNullException.ThrowIfNull(onError);
+
+        if (result.TryGetValue(out var value))
+        {
+            await onOk(value);
+            return;
+        }
+
+        if (result.TryGetError(out var error))
+        {
+            await onError(error.GetValueOrDefault());
+            return;
+        }
+
+        throw new UnwrapException(null);
+    }
+
     /// <summary>Transforms the success value and preserves any error.</summary>
     public static Rail<TOut> Map<T, TOut>(this Rail<T> result, Func<T, TOut> mapper)
     {

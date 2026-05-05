@@ -44,6 +44,7 @@ await LookupBySku();
 await EnsureNullSafetyDemo();
 await ToFailShorthandDemo();
 await SystemFailureWithMessageDemo();
+await SwitchDemo();
 
 Banner("All scenarios completed");
 
@@ -364,6 +365,26 @@ Task SystemFailureWithMessageDemo()
     // With inner exception
     var withInner = new UnionError.SystemFailure("operation failed", new TimeoutException("timed out"));
     OK($"With inner — Ex: {withInner.Ex.GetType().Name}: \"{withInner.Ex.Message}\"");
+
+    return Task.CompletedTask;
+}
+
+// ── Switch — void Match for logging both paths ────────────────────────────
+
+Task SwitchDemo()
+{
+    Heading("Switch: void Match — side effects on both branches");
+
+    Rail<int> success = Union.Ok(42);
+    Rail<int> failure = Union.Fail<int>(new UnionError.NotFound("Item"));
+
+    success.Switch(
+        onOk: v => OK($"Success branch: value = {v}"),
+        onError: err => Fail($"Error branch: {err}"));
+
+    failure.Switch(
+        onOk: v => Fail($"Should not reach: {v}"),
+        onError: err => OK($"Error branch: {err.Value}"));
 
     return Task.CompletedTask;
 }
